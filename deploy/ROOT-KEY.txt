@@ -1,0 +1,6 @@
+Zesuro root public key (zs1: Ed25519 + SLH-DSA). Made 2026-11-17.
+zs1.-URQLe7yQKJ15KcrP6GPBxEl6lQELZcX2t5Qy_yEKMw.pCwovwrA_09JdEvV5SB9q2KR0NnesvEpIGIPTmKiURg
+
+Pin this in mirrors and checkers (--root). Do not take it from zesuro.com alone: check it against
+copies published in places the site's operator cannot silently change (this repository's history,
+a DNS TXT record, other mirrors' operators, a printed copy).

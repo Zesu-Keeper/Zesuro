@@ -1,0 +1,10 @@
+# Install as /etc/cron.d/zesuro-record (root-owned, mode 644) once data/authority.json is in place.
+SHELL=/bin/sh
+PATH=/usr/bin:/bin
+# Ed25519 writer key: anchors every 5 minutes, snapshots every 15. flock stops runs overlapping.
+*/5 * * * * whenisaid cd /opt/whenisaid/app && flock -n /tmp/zesuro-anchor.lock /usr/bin/node --no-warnings scripts/anchor.mjs >/dev/null 2>&1
+*/15 * * * * whenisaid cd /opt/whenisaid/app && flock -n /tmp/zesuro-snapshot.lock /usr/bin/node --no-warnings scripts/snapshot.mjs >/dev/null 2>&1
+#
+# Hybrid writer key (anchor.mjs --hybrid): each signature takes ~35 s of CPU. Use these two lines instead:
+# */30 * * * * whenisaid cd /opt/whenisaid/app && flock -n /tmp/zesuro-anchor.lock /usr/bin/node --no-warnings scripts/anchor.mjs >/dev/null 2>&1
+# 10,40 * * * * whenisaid cd /opt/whenisaid/app && flock -n /tmp/zesuro-snapshot.lock /usr/bin/node --no-warnings scripts/snapshot.mjs >/dev/null 2>&1
