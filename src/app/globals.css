@@ -558,7 +558,8 @@ button.link.report.flagged,
 }
 
 /* Help page */
-.help-hero { padding: 8px 0 20px; max-width: 760px; }
+.help-hero, .help-layout { max-width: 1070px; }
+.help-hero { padding: 8px 0 20px; }
 .help-hero h1 { margin: 0 0 8px; font-size: 2rem; letter-spacing: -0.02em; }
 .help-start { display: grid; grid-template-columns: repeat(auto-fit, minmax(220px, 1fr)); gap: 12px; margin: 20px 0 28px; }
 .help-start a { display: block; text-decoration: none; background: var(--surface); border: 1px solid var(--line); border-radius: var(--radius); padding: 14px 16px; }
