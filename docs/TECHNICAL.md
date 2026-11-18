@@ -118,7 +118,7 @@ server {
 
 Get the certificate with certbot using the webroot method and let it renew itself. Turn access logging off if you want the same property as zesuro.com: no visitor addresses are written anywhere.
 
-With `TRUST_PROXY=xff` the app takes the caller's address from the header nginx sets. Without it every caller shares one rate-limit bucket. Use `TRUST_PROXY=cloudflare` behind Cloudflare.
+Set `TRUST_PROXY` to match your proxy (see Settings).
 
 ### Settings
 
@@ -144,7 +144,7 @@ Back up the database, build the new version away from the running one if memory 
 
 ### An onion address
 
-Install Tor and add a hidden service that points at a local port which nginx serves over plain HTTP. Back up the hidden service folder, because the address is its key. Tell nginx to add an `X-Onion` header so the app knows the request came by Tor.
+Install Tor and add a hidden service that points at a local port which nginx serves over plain HTTP. Back up the hidden service folder, because the address is its key.
 
 ## Keeping the record alive
 
@@ -168,7 +168,7 @@ Find the server's writer key in `data/anchor-key.pub` (run `node scripts/anchor.
 node scripts/root.mjs delegate --writer <that key> --from genesis --dir zesuro-root --authority authority.json
 ```
 
-Copy `authority.json` to the server's `data/` folder. From then on the server accepts new entries and comments only while its own key is the delegated writer. Removing the file lifts that rule.
+Copy `authority.json` to the server's `data/` folder. From then on the server accepts new entries and comments only while its own key is the delegated writer.
 
 ### Sign each release
 
@@ -192,7 +192,7 @@ The same `publish-signed.mjs` command signs and uploads this list too when a `si
 
 ### Anchors and snapshots
 
-Install `deploy/cron.d/zesuro-record` as `/etc/cron.d/zesuro-record`. It signs the chain tip every five minutes and writes an encrypted snapshot every fifteen. Copy the snapshots to another machine as well.
+Install `deploy/cron.d/zesuro-record` as `/etc/cron.d/zesuro-record`. It signs the chain tip and writes encrypted snapshots on a schedule. Copy the snapshots to another machine as well.
 
 ### Run a mirror
 
@@ -229,11 +229,11 @@ Run the app there as a mirror first. People move their keys with the Transfer pa
 
 ### The page says writing is not allowed
 
-The server has an `authority.json` that names a different writer key, or its own key file is missing. Check `data/anchor-key.pub` against the last delegation, or delegate to the right key.
+The server's writer key does not match the last delegation. Delegate to the right key.
 
 ### A dated reveal did not open
 
-The round may not be published yet, or the relays are unreachable. The server tries again on the next page view. If the lock holds something that is not a valid opening, it is marked failed and will never reveal.
+The round may not be published yet, or the relays are unreachable. The server tries again later.
 
 ### The chain check fails
 
@@ -259,4 +259,4 @@ Do not fix it by hand. Compare with a mirror, find the first entry that differs,
 ## Known limits
 
 ### What is not solved
-Zesuro is an early project. The permanent record can be filled with spam or abuse, and the only response today is a public flag. The site's code is served by the site, so visitors trust it unless they run the code check. BLS12-381, used by the time lock and chat, is not quantum safe. If enough drand operators colluded they could open a lock early. The cryptography has been tested against reference implementations but has not had an outside audit.
+Zesuro is an early project. The permanent record can be filled with spam or abuse, and the only response today is a public flag. The site's code is served by the site, so visitors trust it unless they run the code check. BLS12-381, used by the time lock and chat, is not quantum safe. The cryptography has been tested against reference implementations but has not had an outside audit.

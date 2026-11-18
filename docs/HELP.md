@@ -127,11 +127,11 @@ There is no recovery. Nobody, including the owner, can prove you wrote your post
 
 ### My reveal did not happen
 
-The public timer may not have reached your time yet, or the site could not reach it. The site tries again on the next page view. If the locked part was not valid, it is marked as failed and never reveals.
+The public timer may not have reached your time yet, or the site could not reach it. It tries again later. If it still does not open, ask for help through the project page.
 
 ### A post was refused as too fast
 
-The site rejects posts sent faster than a person could write them. Wait a few seconds and try again.
+The site limits how often posts can be sent. Wait a little and try again.
 
 ### Can I run my own copy?
 
