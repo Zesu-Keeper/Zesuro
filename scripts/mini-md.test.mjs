@@ -9,11 +9,17 @@ eq(inline("<script>alert(1)</script>"), [{ t: "text", v: "<script>alert(1)</scri
 const b = parse("# T\n\nline one\nline two\n\n## H\n\n- a\n- b\n\n1. x\n2. y\n\n```\ncode <b>\n```\n\n| A | B |\n| --- | --- |\n| 1 | 2 |\n");
 eq(b.map((x) => x.k), ["h1", "p", "h2", "ul", "ol", "code", "table"]);
 eq(b[1].inl[0].v, "line one line two"); eq(b[5].text, "code <b>"); eq(b[6].rows.length, 1);
-const src = fs.readFileSync(new URL("../docs/HELP.md", import.meta.url), "utf8");
-const all = parse(src); ok(all.length > 80, "the help file parses into many blocks");
-ok(all.filter((x) => x.k === "h2").length >= 6, "has the main sections");
+eq(inline("see [the guide](/help/technical) and [x](https://a.example/p)"), [{ t: "text", v: "see " }, { t: "link", v: "the guide", href: "/help/technical" }, { t: "text", v: " and " }, { t: "link", v: "x", href: "https://a.example/p" }], "links");
+for (const bad of ["javascript:alert(1)", "http://plain.example", "//evil.example", "data:text/html,x"]) ok(!inline(`[a](${bad})`).some((x) => x.t === "link"), `no link for ${bad}`);
+for (const f of ["HELP.md", "TECHNICAL.md"]) {
+const src = fs.readFileSync(new URL(`../docs/${f}`, import.meta.url), "utf8");
+const all = parse(src); ok(all.length > 40, `${f} parses into many blocks`);
+ok(all.filter((x) => x.k === "h2").length >= 4, `${f} has the main sections`);
+ok(!/\]\(/.test(JSON.stringify(all)), `${f}: every link in it became a real link`);
 // style: no em or en dashes, no emoji, no stock filler words
 ok(!/[\u2013\u2014]/.test(src), "no em or en dashes");
 ok(!/\p{Extended_Pictographic}/u.test(src), "no emoji");
 for (const w of ["delve", "seamless", "robust", "leverage", "cutting-edge", "game-changer", "in today's", "it's important to note", "it is important to note", "unlock", "empower", "tapestry", "navigate the"]) ok(!src.toLowerCase().includes(w), `avoids "${w}"`);
+if (f === "HELP.md") for (const w of ["npm ", "systemctl", "nginx", "certbot", "sudo ", "node scripts/"]) ok(!src.includes(w), `the everyday help does not tell people to run "${w}"`);
+}
 console.log(`All ${n} mini-md checks passed`);

@@ -1,9 +1,12 @@
 /**
- * A tiny, safe Markdown reader for docs/HELP.md. It understands only what that file uses:
+ * A tiny, safe Markdown reader for the docs in docs/. It understands only what they use:
  * "##" and "###" headings, paragraphs, "-" and "1." lists, fenced code, pipe tables and `inline code`
  * and **bold**. It returns data, never HTML, so React escapes everything.
  */
-export type Inline = { t: "text" | "code" | "bold"; v: string };
+export type Inline = { t: "text" | "code" | "bold"; v: string } | { t: "link"; v: string; href: string };
+
+/** Only https links and site-relative paths become links; anything else stays as plain text. */
+const safeHref = (h: string) => /^https:\/\/[^\s]+$/.test(h) || /^\/(?!\/)[A-Za-z0-9/_#.-]*$/.test(h);
 export type Block =
   | { k: "h2" | "h3" | "h1"; text: string }
   | { k: "p"; inl: Inline[] }
@@ -13,11 +16,14 @@ export type Block =
 
 export function inline(s: string): Inline[] {
   const out: Inline[] = [];
-  const re = /`([^`]+)`|\*\*([^*]+)\*\*/g;
+  const re = /`([^`]+)`|\*\*([^*]+)\*\*|\[([^\]]+)\]\(([^)\s]+)\)/g;
   let i = 0, m: RegExpExecArray | null;
   while ((m = re.exec(s))) {
     if (m.index > i) out.push({ t: "text", v: s.slice(i, m.index) });
-    out.push(m[1] !== undefined ? { t: "code", v: m[1] } : { t: "bold", v: m[2] });
+    if (m[1] !== undefined) out.push({ t: "code", v: m[1] });
+    else if (m[2] !== undefined) out.push({ t: "bold", v: m[2] });
+    else if (safeHref(m[4])) out.push({ t: "link", v: m[3], href: m[4] });
+    else out.push({ t: "text", v: m[0] });
     i = m.index + m[0].length;
   }
   if (i < s.length) out.push({ t: "text", v: s.slice(i) });
