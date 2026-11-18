@@ -12,9 +12,8 @@ export default function HelpPage() {
     <DocView
       file="HELP.md"
       groups={[
-        { name: "Using Zesuro", sections: ["Using Zesuro", "Private chat"] },
+        { name: "Using Zesuro", sections: ["Using Zesuro", "Private chat", "Questions"] },
         { name: "Safety and trust", sections: ["Is it safe?", "How the site is set up"] },
-        { name: "Answers", sections: ["Questions", "Go deeper"] },
       ]}
       start={[
         { href: "#using-zesuro", title: "Post something", text: "Seal a statement and choose when your name appears." },
