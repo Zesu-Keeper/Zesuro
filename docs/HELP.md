@@ -12,11 +12,11 @@ People use Zesuro to put a statement on record before something happens, or to s
 
 ### Posting a statement
 
-Open Say it, write a title and your text, choose when your name will be shown, and press Seal. From that moment the text is public with the exact time next to it. Nobody can edit or delete it afterwards, including the owner of the site.
+Open **Say it** (the highlighted button at the top), write a title and your text, choose when your name will be shown, and press Seal. From that moment the text is public with the exact time next to it. Nobody can edit or delete it afterwards, including the owner of the site.
 
 ### Choosing when your name is shown
 
-- **Decide later.** The post is anonymous. You show your name yourself, any time, from Mine.
+- **Decide later.** The post is anonymous. You show your name yourself, any time, from My posts.
 - **On a date.** Your name appears automatically at the time you pick. Until then nobody can read it, not even the site.
 - **No matter what.** Like a date, but it can never be stopped once you have sealed it.
 
@@ -42,7 +42,7 @@ Open Transfer on your old device to make a code and a bundle. Open Transfer on t
 - Comment on a post. Comments are permanent too.
 - Like or dislike a post, and vote on whether the thing described really happened. You get one vote per browser.
 - Flag spam. A flag is a public count that moves a post down the list. Nothing is ever removed because of flags.
-- The Called it page shows revealed posts ranked by how many people say they happened.
+- The Came true page shows revealed posts ranked by how many people say they happened.
 
 ## Private chat
 
@@ -52,7 +52,7 @@ Private chat lets someone talk to another person, for example a source and a rep
 
 ### Starting a chat
 
-1. Open Chat and start a private chat. You get a link.
+1. Open Private chat and start a new chat. You get a link.
 2. Send the link to the other person by a channel you trust. You choose whether it works once, a few times, or without limit.
 3. When they open it, both browsers set up the encryption. Each side sees a short safety code.
 4. Compare the safety code by voice or in person. If the codes match, nobody is in the middle.

@@ -3,7 +3,7 @@ import EntryCard from "@/components/EntryCard";
 import { listCalled } from "@/lib/entries";
 
 export const dynamic = "force-dynamic";
-export const metadata = { title: "Called It · Zesuro" };
+export const metadata = { title: "Came true · Zesuro" };
 
 const PAGE = 25;
 const MAX_PAGE = 400; // offset ceiling matches listCalled's
@@ -18,10 +18,10 @@ export default async function Called({ searchParams }: { searchParams: Promise<{
 
   return (
     <main>
-      <h1>Called it</h1>
+      <h1>Came true</h1>
       <p className="lede">
-        Revealed entries, ranked by how many people say it really happened. Anyone can vote once
-        an entry is revealed, one vote per browser.
+        Posts whose author has been revealed, ranked by how many people say it really happened.
+        Anyone can vote once a post is revealed, one vote per browser.
       </p>
       {shown.length === 0 ? (
         <p className="empty">

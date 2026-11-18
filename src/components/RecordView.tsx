@@ -40,7 +40,7 @@ export default async function RecordView({ sp, sort }: { sp: RecordParams; sort:
   if (searching && rateLimitedHeaders(await headers(), "search", 30, 60_000)) {
     return (
       <main>
-        <h1>The record</h1>
+        <h1>{sort === "top" ? "Popular posts" : "Latest posts"}</h1>
         <p className="empty">Too many searches. Wait a moment and try again.</p>
       </main>
     );
@@ -70,7 +70,7 @@ export default async function RecordView({ sp, sort }: { sp: RecordParams; sort:
 
   return (
     <main>
-      <h1>The record</h1>
+      <h1>{sort === "top" ? "Popular posts" : "Latest posts"}</h1>
       <p className="lede">
         What people said, and when. Names stay hidden until the author reveals them. Anyone can
         read this, no account needed.
@@ -78,16 +78,16 @@ export default async function RecordView({ sp, sort }: { sp: RecordParams; sort:
 
       <nav className="tabs" aria-label="Order">
         <Link href={href({}, BASE.top)} aria-current={sort === "top" ? "page" : undefined}>
-          Top
+          Popular
         </Link>
         <Link href={href({}, BASE.new)} aria-current={sort === "new" ? "page" : undefined}>
-          New
+          Latest
         </Link>
       </nav>
       <p className="count" style={{ marginTop: 0 }}>
         {sort === "top"
-          ? "Most liked first, with newer entries given a head start. Dislikes push an entry down. Entries that say much the same thing are shown once, by the best ranked of them."
-          : "Newest first, in the order they were sealed."}
+          ? "Most liked first, with newer posts given a head start. Dislikes push a post down. Posts that say much the same thing are shown once, by the best ranked of them."
+          : "Newest first, in the order they were posted."}
       </p>
 
       <form action={BASE[sort]} method="get" role="search" className="row" style={{ marginTop: 0, flexWrap: "wrap" }}>

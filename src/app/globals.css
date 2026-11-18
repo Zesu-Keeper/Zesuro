@@ -80,6 +80,18 @@ a {
   background: var(--line);
   color: var(--ink);
 }
+.nav a.cta {
+  background: var(--accent);
+  color: var(--accent-ink);
+  font-weight: 600;
+  padding: 6px 16px;
+  margin-right: 6px;
+}
+.nav a.cta:hover {
+  background: var(--accent);
+  color: var(--accent-ink);
+  filter: brightness(1.1);
+}
 
 h1 {
   font-size: 1.5rem;

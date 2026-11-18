@@ -130,7 +130,7 @@ export default function Mine() {
 
   return (
     <main>
-      <h1>Your entries</h1>
+      <h1>Your posts</h1>
       <p className="lede">
         Kept on this device. Only you can reveal them. Using another Zesuro address? <Link href="/transfer">Move your keys</Link> to it.
       </p>

@@ -26,12 +26,12 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
               zes<span>u</span>ro
             </Link>
             <nav className="nav" aria-label="Main">
-              <Link href="/">Record</Link>
-              <Link href="/new">New</Link>
-              <Link href="/called">Called it</Link>
-              <Link href="/say">Say it</Link>
-              <Link href="/chat">Chat</Link>
-              <Link href="/mine">Mine</Link>
+              <Link href="/say" className="cta">Say it</Link>
+              <Link href="/">Popular</Link>
+              <Link href="/new">Latest</Link>
+              <Link href="/called">Came true</Link>
+              <Link href="/chat">Private chat</Link>
+              <Link href="/mine">My posts</Link>
               <Link href="/help">Help</Link>
             </nav>
           </header>

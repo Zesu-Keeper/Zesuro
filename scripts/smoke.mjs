@@ -354,7 +354,7 @@ check("vote counts are public on the entry", topList[0]?.likes === 4);
 const chain3 = (await api("GET", "/api/chain")).body;
 check("votes don't affect the hash chain", chain3?.ok === true);
 const home = await fetch(`${BASE}/`);
-check("record is the landing page", home.status === 200 && (await home.text()).includes("The record"));
+check("record is the landing page", home.status === 200 && (await home.text()).includes("Popular posts"));
 const old = await fetch(`${BASE}/record?status=revealed`, { redirect: "manual" });
 check("old /record address redirects to /new", [307, 308].includes(old.status) && (old.headers.get("location") || "").includes("/new?status=revealed"), old.status + " " + old.headers.get("location"));
 check("seal page is at /say", (await fetch(`${BASE}/say`)).status === 200);
@@ -436,7 +436,7 @@ check("author tag can't be moved onto different text", !(await holderSees(th.enc
 const pubJson = JSON.stringify((await api("GET", `/api/entries/${ce.uid}/comments?after=50`)).body);
 check("nothing in the public comment data names the author's key", !pubJson.includes(th.pub) && !pubJson.includes(k.pub.x));
 
-// 15. Did it happen? (revealed entries only) and Called it
+// 15. Did it happen? (revealed entries only) and Came true
 const oEnt = await seal(k, { title: "Outcome target" });
 const outcome = (uid, voter, value) => api("POST", `/api/entries/${uid}/outcome`, { voter, value });
 check("can't vote on the outcome before reveal (409)", (await outcome(oEnt.uid, vt(1), 1)).status === 409);
@@ -449,9 +449,9 @@ check("one outcome vote per browser", orr.body?.up === 2 && orr.body?.down === 1
 check("outcome vote on missing entry is 404", (await outcome(randomUUID(), vt(1), 1)).status === 404);
 check("outcome and like votes are separate", (await api("GET", `/api/entries/${oEnt.uid}`)).body?.entry?.likes === 0);
 const calledHtml = await (await fetch(`${BASE}/called`)).text();
-check("Called it page lists the voted entry", calledHtml.includes("Outcome target"));
-check("Called it page 2 is empty but works", (await fetch(`${BASE}/called?page=2`)).status === 200);
-check("Called it ignores silly page numbers", (await fetch(`${BASE}/called?page=-5`)).status === 200 && (await fetch(`${BASE}/called?page=99999999`)).status === 200);
+check("Came true page lists the voted entry", calledHtml.includes("Outcome target"));
+check("Came true page 2 is empty but works", (await fetch(`${BASE}/called?page=2`)).status === 200);
+check("Came true ignores silly page numbers", (await fetch(`${BASE}/called?page=-5`)).status === 200 && (await fetch(`${BASE}/called?page=99999999`)).status === 200);
 const chain4 = (await api("GET", "/api/chain")).body;
 check("comment chain verifies and is counted", chain4?.ok === true && chain4?.comments?.ok === true && chain4.comments.count >= 57, JSON.stringify(chain4?.comments));
 const entryHtml = await (await fetch(`${BASE}/e/${ce.uid}`)).text();
