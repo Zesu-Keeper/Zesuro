@@ -21,6 +21,7 @@ await p.goto(BASE + "/say");
 const title = "Browser sealed " + Date.now();
 await p.getByLabel("Title").fill(title);
 await p.getByLabel("What do you want to say?").fill("The result will be [[Mr Green]] on the day, mark my words");
+await p.getByLabel("Your name (required)").fill("Alex R.");
 await p.getByRole("button", { name: "Seal", exact: true }).click();
 await p.getByRole("dialog").waitFor();
 // Manual mode is the default: seal it, which first asks for a key backup.
@@ -43,7 +44,6 @@ check("the device key's public key is not in the entry's public data", !JSON.str
 // Reveal from Mine
 await p.goto(BASE + "/mine");
 await p.getByRole("button", { name: /Reveal/ }).first().click();
-await p.getByLabel("Name to show on this entry").fill("Alex R.");
 await p.getByRole("button", { name: "Reveal now" }).click();
 await p.getByText("Alex R.").first().waitFor({ timeout: 20000 });
 const rev = (await (await fetch(`${BASE}/api/entries/${uid}`)).json()).entry;

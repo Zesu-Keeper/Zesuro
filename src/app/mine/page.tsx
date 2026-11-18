@@ -70,7 +70,7 @@ export default function Mine() {
     // Dated entries reveal under the name they were sealed with, which this device kept. The name is
     // time-locked, so the server cannot supply it: if this device did not keep it (a restored key),
     // the author types one.
-    const h = m.mode === "date" && m.handle ? m.handle : handle.trim();
+    const h = m.handle ? m.handle : handle.trim();
     if (!h) return setErr("Enter the name to show.");
     const key = loadKey();
     if (!key) return setErr("This device does not have the key for that entry. Restore it below.");
@@ -180,7 +180,7 @@ export default function Mine() {
               {!done && m.mode !== "locked" ? (
                 revealing === m.uid ? (
                   <div style={{ marginTop: 12 }}>
-                    {m.mode === "date" && m.handle ? (
+                    {m.handle ? (
                       <p className="count">
                         Reveals now as <span className="who">{m.handle}</span>, the name
                         you sealed it with.

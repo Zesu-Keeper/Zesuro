@@ -119,8 +119,8 @@ export default function SayIt() {
         return whenTime
           ? "That time has already passed. Pick a later time."
           : "That date has already started. Pick a later date, or add a time later today.";
-      if (!handle.trim()) return "Enter the name you want shown when it's revealed.";
     }
+    if (!handle.trim()) return "Enter the name you want shown when it's revealed.";
     if (useDeadline) {
       if (!deadlineMs) return "Choose the deadline date.";
       if (deadlineMs < Date.now() + 60_000)
@@ -222,7 +222,7 @@ export default function SayIt() {
         createdAt: data.entry.createdAt,
         mode,
         revealAt,
-        handle: mode === "manual" ? null : handle.trim(),
+        handle: handle.trim(),
         secret,
         commitV: 2,
       });
@@ -499,19 +499,26 @@ export default function SayIt() {
                         still happens on time.
                       </small>
                     </label>
-                    <label className="lbl" htmlFor="handle">
-                      Name to show when revealed
-                    </label>
-                    <input
-                      id="handle"
-                      type="text"
-                      value={handle}
-                      maxLength={40}
-                      onChange={(e) => setHandle(e.target.value)}
-                      placeholder="e.g. Alex R."
-                    />
                   </div>
                 ) : null}
+
+                <div className="field">
+                  <label className="lbl" htmlFor="handle">
+                    Your name (required)
+                  </label>
+                  <input
+                    id="handle"
+                    type="text"
+                    value={handle}
+                    maxLength={40}
+                    onChange={(e) => setHandle(e.target.value)}
+                    placeholder="e.g. Alex R."
+                  />
+                  <p className="count" style={{ margin: "6px 0 0" }}>
+                    Every post has a name. It stays hidden until you reveal it
+                    {mode === "manual" ? ", which you do yourself from My posts. It is kept in this browser with your key, so back the key up." : ", on the date you chose."}
+                  </p>
+                </div>
 
                 <details style={{ marginTop: 12 }}>
                   <summary>More options</summary>

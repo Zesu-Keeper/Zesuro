@@ -12,15 +12,15 @@ People use Zesuro to put a statement on record before something happens, or to s
 
 ### Posting a statement
 
-Open **Say it** (the highlighted button at the top), write a title and your text, choose when your name will be shown, and press Seal. From that moment the text is public with the exact time next to it. Nobody can edit or delete it afterwards, including the owner of the site.
+Open **Say it** (the highlighted button at the top), write a title and your text, enter the name you want shown, choose when it will be shown, and press Seal. From that moment the text is public with the exact time next to it. Nobody can edit or delete it afterwards, including the owner of the site.
 
 ### Choosing when your name is shown
 
-- **Decide later.** The post is anonymous. You show your name yourself, any time, from My posts.
+- **Decide later.** The post is anonymous. You show the name you entered yourself, any time, from My posts. Your browser keeps the name with your key.
 - **On a date.** Your name appears automatically at the time you pick. Until then nobody can read it, not even the site.
 - **No matter what.** Like a date, but it can never be stopped once you have sealed it.
 
-A name is only a claim that the same key sealed the post. Anyone can type any name, so a shown name is only as believable as the person who showed it.
+Every post needs a name. A name is only a claim that the same key sealed the post. Anyone can type any name, so a shown name is only as believable as the person who showed it.
 
 ### Hiding parts of your text
 
