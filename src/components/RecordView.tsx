@@ -72,8 +72,8 @@ export default async function RecordView({ sp, sort }: { sp: RecordParams; sort:
     <main>
       <h1>{sort === "top" ? "Popular posts" : "Latest posts"}</h1>
       <p className="lede">
-        What people said, and when. Names stay hidden until the author reveals them. Anyone can
-        read this, no account needed.
+        What people said, and when. A name stays hidden until the person who wrote it chooses to
+        reveal it. Anyone can read this, and you don&apos;t need an account.
       </p>
 
       <nav className="tabs" aria-label="Order">
@@ -86,8 +86,8 @@ export default async function RecordView({ sp, sort }: { sp: RecordParams; sort:
       </nav>
       <p className="count" style={{ marginTop: 0 }}>
         {sort === "top"
-          ? "Most liked first, with newer posts given a head start. Dislikes push a post down. Posts that say much the same thing are shown once, by the best ranked of them."
-          : "Newest first, in the order they were posted."}
+          ? "The most liked posts come first, and newer posts get a small boost. Dislikes push a post down. If several posts say much the same thing, only the best one is shown here."
+          : "The newest posts come first."}
       </p>
 
       <form action={BASE[sort]} method="get" role="search" className="row" style={{ marginTop: 0, flexWrap: "wrap" }}>

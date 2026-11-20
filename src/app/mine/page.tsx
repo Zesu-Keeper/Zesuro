@@ -132,14 +132,14 @@ export default function Mine() {
     <main>
       <h1>Your posts</h1>
       <p className="lede">
-        Kept on this device. Only you can reveal them. Using another Zesuro address? <Link href="/transfer">Move your keys</Link> to it.
+        These are the posts you made on this device. Only you can reveal them. Using Zesuro at a different address? <Link href="/transfer">Move your keys</Link> to it.
       </p>
       {err ? <p className="err">{err}</p> : null}
       {msg ? <p className="notice">{msg}</p> : null}
 
       {mine === null ? null : mine.length === 0 ? (
         <p className="empty">
-          Nothing sealed on this device yet. <Link href="/say">Say something.</Link>
+          You haven&apos;t posted anything from this device yet. <Link href="/say">Say something.</Link>
         </p>
       ) : (
         mine.map((m) => {
@@ -192,8 +192,8 @@ export default function Mine() {
                         </label>
                         {m.mode === "date" ? (
                           <p className="count">
-                            This device did not keep the name you sealed it with. The name you enter
-                            is the one shown now; the sealed one, time-locked, still opens on the date.
+                            This device didn&apos;t keep the name you posted with. The name you type
+                            here will be shown now. The name you originally locked in will still open on the date.
                           </p>
                         ) : null}
                         <input
@@ -207,7 +207,7 @@ export default function Mine() {
                     )}
                     {m.secret ? (
                       <p className="count">
-                        This also publishes the text and place you hid.
+                        This will also show the words and place you hid.
                       </p>
                     ) : null}
                     <div className="row">
@@ -265,7 +265,7 @@ export default function Mine() {
         <button
           onClick={() => {
             const k = loadKey();
-            if (!k) setErr("No key on this device yet. Seal something first.");
+            if (!k) setErr("There is no key on this device yet. Post something first.");
             else setBackup(k);
           }}
         >

@@ -362,7 +362,7 @@ export default function SayIt() {
               placeholder="e.g. Central Station"
             />
             <p className="count" style={{ margin: "6px 0 0" }}>
-              The map loads tiles from OpenStreetMap, which can see the area you browse.
+              The map pictures come from OpenStreetMap, which can see which part of the map you look at.
             </p>
           </>
         ) : null}
@@ -458,7 +458,7 @@ export default function SayIt() {
                   />
                   <b>No matter what</b>
                   <small>
-                    Revealed on that date. Your name and the hidden parts are encrypted in your browser to the moment of the reveal (time-lock encryption, using the drand beacon), so this site cannot read them early. Nobody can. It opens them itself once that moment has passed. It cannot be cancelled or changed.
+                    Revealed on that date and can&apos;t be stopped. Your name and any hidden parts are locked in your browser until that time, so nobody can read them early, not even this site. When the time comes, the site opens them automatically.
                   </small>
                 </label>
 
@@ -495,8 +495,8 @@ export default function SayIt() {
                       />
                       <b>Show the reveal date publicly</b>
                       <small>
-                        Off: the public sees it&apos;s scheduled, but not when. The reveal
-                        still happens on time.
+                        If you leave this off, people can see a reveal is planned, but not when.
+                        It still happens on time.
                       </small>
                     </label>
                   </div>
@@ -515,8 +515,8 @@ export default function SayIt() {
                     placeholder="e.g. Alex R."
                   />
                   <p className="count" style={{ margin: "6px 0 0" }}>
-                    Every post has a name. It stays hidden until you reveal it
-                    {mode === "manual" ? ", which you do yourself from My posts. It is kept in this browser with your key, so back the key up." : ", on the date you chose."}
+                    Every post has a name. Nobody can see it until it&apos;s revealed
+                    {mode === "manual" ? ". You reveal it yourself from My posts. The name is kept in this browser with your key, so back the key up." : ", on the date you chose."}
                   </p>
                 </div>
 
@@ -528,10 +528,10 @@ export default function SayIt() {
                       checked={useDeadline}
                       onChange={(e) => setUseDeadline(e.target.checked)}
                     />
-                    <b>Mark as Unknown if I haven&apos;t revealed by a deadline</b>
+                    <b>Mark it &quot;Unknown&quot; if I haven&apos;t revealed it by a deadline</b>
                     <small>
-                      After the deadline it shows in the public Unknown list. You can still
-                      reveal later.
+                      After the deadline, the post is listed as Unknown. You can still reveal it
+                      later.
                     </small>
                   </label>
                   {useDeadline ? (

@@ -84,7 +84,7 @@ await A.page.getByRole("button", { name: "Prove it" }).click();
 await B.page.locator(".chat-proof.ok").waitFor({ timeout: 20000 });
 check("reporter sees the post verified, with its title", (await B.page.locator(".chat-proof.ok").innerText()).includes(title));
 await A.page.locator(".chat-proof.ok").waitFor({ timeout: 20000 });
-check("reporter has no proof controls", await B.page.getByText("Prove a post is yours").count() === 0);
+check("reporter has no proof controls", await B.page.getByText("Show them a post is yours").count() === 0);
 
 await B.page.getByLabel("Message timer").selectOption("604800000");
 await A.page.getByText(/set the timer to "Delete after 7 days"/).waitFor({ timeout: 15000 });
@@ -118,7 +118,7 @@ await Y.page.goto(`${BASE}/chat#r=${roomId}`);
 await Y.page.getByText("This browser doesn't hold the key to that chat").waitFor({ timeout: 10000 });
 check("a stranger with only the room address gets nothing", true);
 
-await A.page.getByRole("button", { name: "Delete chat" }).click();
+await A.page.getByRole("button", { name: "End chat and delete keys" }).click();
 await A.page.getByText("Your chats").waitFor({ timeout: 10000 });
 await B.page.getByText("This chat was deleted").waitFor({ timeout: 20000 });
 check("deleting removes the chat for both", true);

@@ -93,12 +93,14 @@ export default async function EntryPage({ params }: { params: Promise<{ uid: str
         initialMore={first.more}
       />
 
-      <h1 style={{ fontSize: "1.1rem" }}>How this is recorded</h1>
+      <h1 style={{ fontSize: "1.1rem" }}>How this is kept safe</h1>
       <div className="card">
         <p className="lede" style={{ marginBottom: 8 }}>
-          Entry #{e.seq} is chained to the entry before it, so the sealed time and the words
-          cannot be changed without breaking every entry after it.
+          This is post number {e.seq}. Each post is linked to the one before it, so its words and
+          the time it was posted can&apos;t be changed without breaking every post after it.
         </p>
+        <details>
+          <summary>Technical details, for people who want to check</summary>
         <p className="mono">entry hash: {e.entryHash}</p>
         <p className="mono">previous hash: {e.prevHash}</p>
         <p className="mono">author commitment: {e.commitment}</p>
@@ -110,8 +112,8 @@ export default async function EntryPage({ params }: { params: Promise<{ uid: str
             <p className="mono">time-lock hash: {e.timelock.hash}</p>
             <p className="meta">
               {e.status === "revealed"
-                ? "The author's name and any hidden parts were time-locked: encrypted in their browser to a moment when the drand beacon publishes a number nobody could know earlier. "
-                : "The author's name and any hidden parts are time-locked: encrypted in their browser so that neither this site nor anyone else can read them before the reveal moment. "}
+                ? "The author's name and any hidden parts were locked in their browser until a public timer (the drand beacon) reached the reveal time. "
+                : "The author's name and any hidden parts are locked in their browser. Nobody, including this site, can read them before the reveal time. "}
               The hash above is part of the chain
               {e.timelock.round !== null ? `, and the lock opens at drand round ${e.timelock.round}` : ""}.
             </p>
@@ -127,8 +129,8 @@ export default async function EntryPage({ params }: { params: Promise<{ uid: str
           </p>
         ) : e.secretCommit ? (
           <p className="meta">
-            The redacted text{e.placeHidden ? " and the place" : ""} are committed to above. They
-            will be opened here when the entry is released.
+            The hidden words{e.placeHidden ? " and the place" : ""} are locked in above. They will
+            be shown here when the post is revealed.
           </p>
         ) : null}
         {e.schedule ? (
@@ -138,26 +140,26 @@ export default async function EntryPage({ params }: { params: Promise<{ uid: str
           </p>
         ) : e.schedCommit ? (
           <p className="meta">
-            The reveal schedule is committed to above. The author chose not to show the dates yet,
-            and they will be opened here once they are no longer private.
+            The reveal date is locked in above. The author chose not to show it yet. It will be
+            shown here once it is no longer private.
           </p>
         ) : null}
+        </details>
         <p className="meta">
-          This site signs the tip of this chain every few minutes, and independent mirrors check and
-          countersign it. See <Link href="/anchors">Anchors</Link>, where you can also check the
-          whole record yourself. Until a witnessed anchor made after this entry exists, its time is
-          only this site&apos;s word.
+          This site stamps the whole record every few minutes, and other people&apos;s copies of it
+          (mirrors) check and sign each stamp. See <Link href="/anchors">Anchors</Link>. Until a
+          mirror has signed a stamp made after this post, the time shown is only this site&apos;s word.
         </p>
       </div>
 
       {e.status === "revealed" && e.opening ? (
         <details className="card">
-          <summary>Check the author&apos;s claim</summary>
+          <summary>Check that the author really wrote this</summary>
           {e.opening.v === 2 ? (
             <>
               <p className="meta">
-                This entry was sealed with a key made for it alone. Its commitment covers the
-                entry&apos;s content, so it can only match this exact text. Anyone can check:
+                This post was sealed with a key made just for it, and its lock covers the exact words,
+                so it can only match this text. Anyone can check:
                 SHA-256 of{" "}
                 <span className="mono">
                   zesuro:commit:v2:&lt;public key&gt;:&lt;salt&gt;:&lt;SHA-256 of the content&gt;

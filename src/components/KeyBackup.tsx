@@ -53,8 +53,8 @@ export default function KeyBackup({
     <div>
       <h2>Save your key</h2>
       <p className="lede">
-        This is the only way to reveal that an entry is yours. Keep it somewhere safe: your
-        photos, a password manager, or print it.
+        Your key is the only thing that proves your posts are yours. Save it somewhere safe, like
+        your photos, a password manager, or a printout.
       </p>
       {png ? (
         // eslint-disable-next-line @next/next/no-img-element
@@ -78,8 +78,8 @@ export default function KeyBackup({
         </button>
       </div>
       <div className="warnbox">
-        Treat this like a password. Anyone who has it can reveal your entries. If you lose it
-        and this device is wiped, you will never be able to reveal them.
+        Treat this like a password. Anyone who has it can reveal your posts. If you lose it and
+        this device is wiped, you will never be able to reveal them.
       </div>
       <label className="opt" style={{ cursor: touched ? "pointer" : "not-allowed" }}>
         <input
@@ -104,8 +104,8 @@ export default function KeyBackup({
       </div>
       {onSkip ? (
         <p className="count" style={{ textAlign: "center" }}>
-          This entry reveals on its date even without the key, but you will need it to reveal
-          early or to use another device.{" "}
+          This post will still reveal itself on its date without the key. You only need the key if
+          you want to reveal it sooner, or use another device.{" "}
           <button type="button" className="link" onClick={onSkip}>
             Skip and seal
           </button>

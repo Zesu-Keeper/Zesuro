@@ -142,6 +142,39 @@ function Home() {
     warmTicket();
   }, [reload]);
 
+  // A chat the other person ended: its key is deleted from this browser as soon as we notice.
+  useEffect(() => {
+    let stop = false;
+    async function sweep() {
+      let ended = 0;
+      for (const r of loadChats().rooms.slice(0, 20)) {
+        try {
+          const k = await roomKeys(r.master, r.id);
+          const res = await fetch(`/api/chat/rooms/${r.id}?after=2147483647`, { cache: "no-store", headers: { "x-chat-auth": k.token } });
+          if (res.status === 410) {
+            dropRoom(r.id);
+            ended++;
+          }
+        } catch {
+          /* offline: try again later */
+        }
+      }
+      if (stop || !ended) return;
+      setNote(
+        ended === 1
+          ? "A chat was ended by the other person. Its key has been deleted from this browser."
+          : `${ended} chats were ended by the other person. Their keys have been deleted from this browser.`,
+      );
+      reload();
+    }
+    sweep();
+    const t = setInterval(sweep, 60_000);
+    return () => {
+      stop = true;
+      clearInterval(t);
+    };
+  }, [reload]);
+
   // Watch the links this browser made: when someone opens one, finish the key exchange.
   useEffect(() => {
     let stop = false;
@@ -259,9 +292,9 @@ function Home() {
     <main>
       <h1>Private chat</h1>
       <p className="lede">
-        An encrypted conversation between two people. Messages are locked in your browser before
-        they leave it; this site stores them but cannot read them. You start one by making a
-        link and giving it to the other person.
+        Chat privately with one person. Your messages are scrambled on your device before they are
+        sent, so this site can&apos;t read them. To start, make a link and send it to the person you
+        want to talk to.
       </p>
 
       <div className="card">
@@ -318,10 +351,10 @@ function Home() {
       </div>
 
       <p className="count">
-        The other person never sees a name, an address or an account. If you are the source, they
-        see a pseudonym made for that one chat, and only you can show them which public entries
-        are yours, one at a time, inside the chat. <Link href="/mine">Back up your key</Link> so
-        you can still do that on another device.
+        The other person never sees your name, your address or an account. If you started the chat,
+        they only see a made-up name that exists for this chat alone. Later you can choose to show
+        them that you wrote a particular public post, without saying who you are.{" "}
+        <Link href="/mine">Back up your key</Link> so you can still do that from another device.
       </p>
 
       {invites.length ? <h2 className="chat-h">Links waiting to be opened</h2> : null}
@@ -352,10 +385,10 @@ function Home() {
           </div>
           {fresh === inv.id ? (
             <div className="warnbox">
-              How you send this link matters more than anything else here. Whoever opens it first
-              becomes the other person in the chat, and a link sent from an account in your name
-              tells the receiver who you are. Keep this page open, or come back to it in this
-              same browser: the chat appears here once the link is opened.
+              Be careful how you send this link. Whoever opens it first becomes the other person in
+              the chat, and if you send it from an account with your real name, they will know who
+              you are. Keep this page open, or come back to it in this same browser: the chat will
+              show up here once the link is opened.
             </div>
           ) : null}
         </div>
@@ -368,7 +401,7 @@ function Home() {
           <div className="row" style={{ marginTop: 0 }}>
             <span>
               <span className={`badge ${r.role === "a" ? "revealed" : "anonymous"}`}>
-                {r.role === "a" ? "You are the source" : "You opened a link"}
+                {r.role === "a" ? "You made the link" : "You opened a link"}
               </span>{" "}
               <span className="count">Started <Stamp ms={r.createdAt} /></span>
             </span>
@@ -402,11 +435,11 @@ function Home() {
       <details>
         <summary>What this does and doesn&apos;t protect</summary>
         <ul className="chat-notes">
-          <li>The site can&apos;t read your messages, and can&apos;t tell which public posts a chat is about unless someone checks a proof.</li>
-          <li>The site&apos;s server does see the internet address a browser connects from, though it keeps no log of it. To hide that as well, use Tor Browser.</li>
-          <li>Anyone holding your unlocked phone or computer can read the chats in its browser. Use the delete timer or &quot;Delete chat&quot; if that worries you.</li>
-          <li>Deleting removes messages from this site. It can&apos;t remove a copy the other person saved or photographed, and encrypted copies stay in the site&apos;s backups for up to 14 days.</li>
-          <li>Compare the safety code with the other person if you can. Matching codes mean nobody is in between.</li>
+          <li>This site can&apos;t read your messages. It also can&apos;t tell which public posts a chat is about, unless you choose to prove one.</li>
+          <li>The site can see the internet address your browser connects from, but it doesn&apos;t keep a record of it. Use Tor Browser to hide that too.</li>
+          <li>Anyone who can use your unlocked phone or computer can read your chats. Use the delete timer or &quot;End chat and delete keys&quot; if that worries you.</li>
+          <li>Deleting removes the messages from this site. It can&apos;t remove a copy the other person saved or took a photo of. Scrambled copies can stay in the site&apos;s backups for up to 14 days.</li>
+          <li>If you can, compare the safety code with the other person. If the codes match, nobody is listening in the middle.</li>
         </ul>
       </details>
     </main>
@@ -500,13 +533,13 @@ function Join({ secret }: { secret: string }) {
       {state === "ready" || state === "busy" ? (
         <div className="card">
           <p className="lede">
-            Someone has invited you to an encrypted conversation. Messages are locked in your
-            browser before they leave it; this site stores them but cannot read them.
+            Someone has invited you to a private chat. Your messages are scrambled on your device
+            before they are sent, so this site can&apos;t read them.
           </p>
           <ul className="chat-notes">
-            <li>Open it in the browser you will keep using. The chat&apos;s key is stored in this browser, and the link may only work once.</li>
-            <li>You don&apos;t need an account, and the other person learns nothing about you except what you type.</li>
-            <li>The other person can prove they wrote particular entries on Zesuro&apos;s public record without telling you who they are.</li>
+            <li>Open it in the browser you plan to keep using. The chat key is kept in this browser, and the link may only work once.</li>
+            <li>You don&apos;t need an account. The other person learns nothing about you except what you type.</li>
+            <li>The other person can show you that they wrote a particular public post, without telling you who they are.</li>
           </ul>
           <div className="row" style={{ justifyContent: "flex-start" }}>
             <button type="button" className="primary" onClick={join} disabled={state === "busy"}>
@@ -517,10 +550,10 @@ function Join({ secret }: { secret: string }) {
       ) : null}
       {state === "used" ? (
         <div className="warnbox">
-          <b>This link has already been used, or was cancelled.</b> If you did not open it yourself
-          (in another browser, say), someone else may have. Tell the person who sent it, through a
-          different channel, and ask for a new link. If you did open it before, go back to the
-          browser you used: the chat is under <Link href="/chat">Private chat</Link> there.
+          <b>This link has already been used, or was cancelled.</b> If you didn&apos;t open it yourself
+          (maybe in another browser), someone else may have. Tell the person who sent it, using a
+          different way of getting in touch, and ask for a new link. If you did open it before, go
+          back to the browser you used. The chat will be under <Link href="/chat">Private chat</Link> there.
         </div>
       ) : null}
       {state === "own" ? (
@@ -585,6 +618,15 @@ function Room({ id }: { id: string }) {
         .catch(() => {});
     }
   }, [room]);
+
+  // The other person ended the chat: erase this browser's key and what is on screen straight away.
+  useEffect(() => {
+    if (gone !== "deleted" || !room) return;
+    dropRoom(room.id);
+    itemsRef.current = [];
+    setItems([]);
+    setKeys(null);
+  }, [gone, room]);
 
   const poll = useCallback(async () => {
     if (!keys || !room || polling.current) return;
@@ -816,17 +858,49 @@ function Room({ id }: { id: string }) {
     }
   }
 
-  async function removeChat() {
-    if (!keys || !room) return;
-    if (!window.confirm("Delete this chat for both of you? Every message is removed from this site. This can't be undone.")) return;
+  /** Forget everything this page holds in memory about the chat. */
+  function wipeScreen() {
+    itemsRef.current = [];
+    setItems([]);
+    setKeys(null);
+    setText("");
+  }
+
+  // Ends the chat for both people: every message is removed from this site and this browser's key is erased.
+  // The other person's browser erases its key as soon as it next looks at the chat.
+  async function endChat() {
+    if (!room) return;
+    if (
+      !window.confirm(
+        "End this chat and delete the keys?\n\nEvery message is removed from this site, and the key on this device is erased. The other person's key is erased as soon as their browser next checks the chat. Nobody will be able to read it again. This can't be undone.",
+      )
+    )
+      return;
     try {
-      const r = await fetch(`/api/chat/rooms/${room.id}`, { method: "DELETE", headers: { "x-chat-auth": keys.token } });
-      if (!r.ok && r.status !== 410) throw new Error("Could not delete the chat");
+      if (keys) {
+        const r = await fetch(`/api/chat/rooms/${room.id}`, { method: "DELETE", headers: { "x-chat-auth": keys.token } });
+        if (!r.ok && r.status !== 410 && r.status !== 404) throw new Error("Could not end the chat");
+      }
+      wipeScreen();
       dropRoom(room.id);
       go("");
     } catch (e) {
-      setErr(errText(e, "Could not delete the chat"));
+      setErr(errText(e, "Could not end the chat. Nothing was deleted. Try again, or delete just this device's key."));
     }
+  }
+
+  // Deletes only this device's key. The chat stays on the site for the other person, but it can't be read here again.
+  function forgetHere() {
+    if (!room) return;
+    if (
+      !window.confirm(
+        "Delete your key for this chat on this device?\n\nYou will not be able to read it here again (unless you copied the chat key). The other person's side is not changed. To end it for both of you, use \"End chat and delete keys\".",
+      )
+    )
+      return;
+    wipeScreen();
+    dropRoom(room.id);
+    go("");
   }
 
   function saveTranscript() {
@@ -883,7 +957,7 @@ function Room({ id }: { id: string }) {
         <h1>Private chat</h1>
         <div className="warnbox">
           {gone === "deleted"
-            ? "This chat was deleted. Its messages have been removed from this site."
+            ? "This chat was ended. Its messages have been removed from this site and the key has been deleted from this browser, so it can't be read again."
             : "The server no longer has this chat."}
         </div>
         <div className="row" style={{ justifyContent: "flex-start" }}>
@@ -894,7 +968,7 @@ function Room({ id }: { id: string }) {
               go("");
             }}
           >
-            Remove it from this browser
+            {gone === "deleted" ? "Back to your chats" : "Remove it from this browser"}
           </button>
         </div>
       </main>
@@ -913,37 +987,39 @@ function Room({ id }: { id: string }) {
       <div className="card chat-head">
         {role === "a" ? (
           <p>
-            <span className="badge revealed">You are the source</span>{" "}
+            <span className="badge revealed">You made the link</span>{" "}
             {introduced ? (
-              <>The other person sees you only as <span className="mono">{me ?? "…"}</span>, a name that exists for this chat alone.</>
+              <>The other person only sees you as <span className="mono">{me ?? "…"}</span>, a made-up name used only in this chat.</>
             ) : (
-              <>You haven&apos;t introduced yourself yet. Compare the safety code below with the other person first, then introduce yourself.</>
+              <>They can&apos;t see anything about you yet. First compare the safety code below with the other person, then say hello.</>
             )}
           </p>
         ) : source ? (
           <p>
-            <span className="badge revealed">Source introduced</span> You are talking to{" "}
-            <span className="mono">{source.id}</span>. That name exists only in this chat and says
-            nothing about who they are. Entries they prove below were sealed by the key they show.
+            <span className="badge revealed">They said hello</span> You are talking to{" "}
+            <span className="mono">{source.id}</span>. It&apos;s a made-up name used only in this chat,
+            so it tells you nothing about who they are. Any posts they prove below were written
+            with the key they show.
           </p>
         ) : badId ? (
-          <p className="err">The other person&apos;s introduction did not check out. Treat this chat with suspicion.</p>
+          <p className="err">Their hello didn&apos;t check out. Be careful with this chat.</p>
         ) : (
           <p>
-            <span className="badge unknown">Source not yet introduced</span> They choose when to
-            introduce themselves, after comparing the safety code.
+            <span className="badge unknown">Waiting for them</span> They&apos;ll say hello once they
+            have compared the safety code.
           </p>
         )}
         {role === "a" && !introduced ? (
           <div className="row" style={{ justifyContent: "flex-start", marginTop: 0 }}>
             <button type="button" className="primary" onClick={introduce} disabled={introducing || !loaded || !keys}>
-              {introducing ? "Introducing…" : "The code matches: introduce myself"}
+              {introducing ? "Saying hello…" : "The codes match: say hello"}
             </button>
           </div>
         ) : null}
         <p className="count">
-          Safety code <span className="mono">{keys?.safety ?? "…"}</span>. If the other person sees a
-          different code, someone is in between: stop.
+          Safety code <span className="mono">{keys?.safety ?? "…"}</span>. Ask the other person to
+          read out their code. If it&apos;s different, someone is listening in the middle. Stop
+          chatting.
         </p>
         <div className="row chat-tools">
           <label className="count">
@@ -968,7 +1044,8 @@ function Room({ id }: { id: string }) {
             >
               {copied ? "Chat key copied" : "Copy chat key"}
             </button>
-            <button type="button" className="link" onClick={removeChat}>Delete chat</button>
+            <button type="button" className="link" onClick={forgetHere} title="Erases only this device's key. The other person can still read the chat.">Delete my key here</button>
+            <button type="button" className="link danger" onClick={endChat} title="Removes every message from this site and erases the key on both sides.">End chat and delete keys</button>
           </span>
         </div>
       </div>
@@ -981,11 +1058,11 @@ function Room({ id }: { id: string }) {
           const flag = flags[it.id];
           if (!m) return <p className="err chat-note" key={it.id}>{flag}</p>;
           const me = m.from === role;
-          const whoLabel = me ? "You" : m.from === "a" ? "The source" : "The other person";
+          const whoLabel = me ? "You" : m.from === "a" ? "They" : "The other person";
           if (m.kind === "id")
             return m.from === "a" ? (
               <p className="count chat-note" key={it.id}>
-                {me ? "You introduced yourself with this chat's pseudonym." : "The source introduced themselves."} <Stamp ms={m.t} />
+                {me ? "You said hello with this chat's made-up name." : "They said hello."} <Stamp ms={m.t} />
               </p>
             ) : null;
           if (m.kind === "timer")
@@ -1001,20 +1078,20 @@ function Room({ id }: { id: string }) {
               <div className={`chat-proof ${p?.status ?? "checking"}`} key={it.id}>
                 {p?.status === "ok" ? (
                   <>
-                    <b>Verified.</b> {me ? "You proved that you" : "The source"} sealed this entry on the
+                    <b>Checked.</b> {me ? "You showed that you" : "They showed that they"} wrote this post on the
                     public record{p.createdAt ? <> at <Stamp ms={p.createdAt} /></> : null}:{" "}
                     <Link href={`/e/${m.uid}`} target="_blank">{p.title || "open entry"}</Link>
                   </>
                 ) : p?.status === "bad" ? (
                   <>
-                    <b>Not verified.</b> {me ? "Your proof" : "The source claimed"}{" "}
+                    <b>Didn&apos;t check out.</b> {me ? "Your proof" : "They said they wrote"}{" "}
                     <Link href={`/e/${m.uid}`} target="_blank">this entry</Link>
-                    {me ? " does not match this browser's key." : ", but the proof does not match it."}
+                    {me ? " doesn't match the key in this browser." : ", but the proof doesn't match."}
                   </>
                 ) : p?.status === "gone" ? (
-                  <>A proof was sent for an entry that could not be loaded.</>
+                  <>A proof was sent for a post that couldn&apos;t be loaded.</>
                 ) : (
-                  <>Checking a proof against the public record…</>
+                  <>Checking the proof against the public record…</>
                 )}
                 {flag ? <span className="err"> {flag}</span> : null}
               </div>
@@ -1056,10 +1133,9 @@ function Room({ id }: { id: string }) {
       {role === "a" ? (
         <div className="card">
           <p className="lede" style={{ marginBottom: 8 }}>
-            <b>Prove a post is yours.</b> Pick one of your entries and the other person&apos;s browser
-            checks it against the public record. They learn that this entry and this chat come from the
-            same key, and they receive that entry&apos;s key and salt. They do not learn your name, and
-            no other entry of yours is linked by it.
+            <b>Show them a post is yours.</b> Pick one of your posts. Their browser will check it
+            against the public record and confirm that the same person wrote that post and is
+            chatting here. They won&apos;t learn your name or which other posts are yours.
           </p>
           {provable.length ? (
             <div className="row" style={{ justifyContent: "flex-start" }}>
@@ -1078,12 +1154,13 @@ function Room({ id }: { id: string }) {
           ) : (
             <p className="count">
               {mine.length
-                ? "You have proved every entry this browser knows as yours."
-                : "You haven't sealed anything from this browser yet. When you do, come back here to prove it."}
+                ? "You have already shown them every post this browser knows is yours."
+                : "You haven't posted anything from this browser yet. When you do, come back here to show it."}
             </p>
           )}
           <p className="count">
-            A proof can&apos;t be taken back. The other person could pass the entry&apos;s key and salt to someone else, who could then check the same thing.
+            You can&apos;t take a proof back. The other person could pass it on, and then anyone they
+            give it to could also check that the post is yours.
           </p>
         </div>
       ) : null}

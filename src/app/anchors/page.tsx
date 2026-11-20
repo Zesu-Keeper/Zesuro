@@ -15,17 +15,17 @@ export default function AnchorsPage() {
     <main>
       <h1>Anchors</h1>
       <p className="lede">
-        Every few minutes this site signs the tip of its record: the hash that every entry and
-        comment feeds into. Mirrors run by other people keep their own complete copy of the record,
-        check each signed tip against it and countersign it with the time they saw it. A mirror
-        refuses to sign if anything it already holds has been changed. So once a tip is witnessed,
-        no entry before it can be altered, removed or backdated without the witnesses&apos; own
-        copies and signatures showing it.
+        Every few minutes this site puts a signed stamp on its whole record, like a seal on an
+        envelope. Other people run copies of the site, called mirrors. They keep their own copy of
+        the record, check it against each stamp, and add their own signature with the time they saw
+        it. A mirror refuses to sign if anything it already had has been changed. So once a stamp has
+        been countersigned, nothing before it can be changed, removed or backdated without the
+        mirrors&apos; copies showing it.
       </p>
       <p className="meta">
-        Anyone can check all of this without trusting this site, or run a mirror. Both are single
-        files that need only Node: <span className="mono">scripts/verify-log.mjs</span> and{" "}
-        <span className="mono">scripts/mirror.mjs</span> in the project.
+        You don&apos;t have to take our word for any of this. People who are comfortable with a command line can check it
+        themselves, or run a mirror. The two tools are{" "}
+        <span className="mono">scripts/verify-log.mjs</span> and <span className="mono">scripts/mirror.mjs</span> in the project.
       </p>
       {key ? <p className="mono">site signing key: {key}</p> : null}
       {anchors.length === 0 ? <p className="empty">No anchors yet.</p> : null}
@@ -42,7 +42,7 @@ export default function AnchorsPage() {
           <p className="mono">entries tip: {a.head.entries.tip}</p>
           <p className="mono">comments tip: {a.head.comments.tip}</p>
           {a.witnesses.length === 0 ? (
-            <p className="meta">Not witnessed yet. Until it is, this is only this site&apos;s word.</p>
+            <p className="meta">No mirror has signed this one yet. Until one does, it is only this site&apos;s word.</p>
           ) : (
             a.witnesses.map((w) => (
               <p className="meta" key={w.key}>

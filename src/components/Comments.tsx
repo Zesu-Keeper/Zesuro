@@ -192,8 +192,8 @@ export default function Comments({
       {owner ? (
         <div className="card">
           <p className="lede" style={{ marginBottom: 8 }}>
-            <b>You sealed this entry.</b> You can give chosen people a private link. They will be
-            able to tell which comments here are yours. Nobody else can, not even this site.
+            <b>You wrote this post.</b> You can give people you trust a private link. With it, they
+            can tell which comments here are yours. Nobody else can, not even this site.
           </p>
           {showLink ? (
             <>
@@ -213,10 +213,10 @@ export default function Comments({
                 </button>
               </div>
               <div className="warnbox">
-                Anyone with this link can recognise your comments on this entry, so send it only
-                over a channel you trust. It can&apos;t be taken back. It doesn&apos;t show your
-                name, doesn&apos;t let anyone post as you, and doesn&apos;t link you to your other
-                entries. Your key backup covers it.
+                Anyone with this link can tell which comments on this post are yours, so only send
+                it to people you trust. You can&apos;t take it back. It doesn&apos;t show your name,
+                it doesn&apos;t let anyone post as you, and it doesn&apos;t connect you to your other
+                posts. Your key backup includes it.
               </div>
             </>
           ) : (
@@ -228,8 +228,8 @@ export default function Comments({
       ) : held ? (
         <div className="card">
           <p className="lede" style={{ marginBottom: 8 }}>
-            You hold a private link for this entry. Comments from whoever gave you that link are
-            marked <span className="badge revealed">From the source</span>. Only people with the
+            You have a private link for this post. Comments from the person who gave you the link are
+            marked <span className="badge revealed">From the author</span>. Only people with the
             link can see the mark.
           </p>
           <button
@@ -260,7 +260,7 @@ export default function Comments({
           <article className={`card comment${mine ? " from-source" : ""}`} key={c.uid}>
             <div className="meta" style={{ marginTop: 0 }}>
               {mine ? (
-                <span className="badge revealed">{owner ? "You, as the author" : "From the source"}</span>
+                <span className="badge revealed">{owner ? "You, as the author" : "From the author"}</span>
               ) : (
                 <span>Anonymous</span>
               )}
@@ -270,8 +270,8 @@ export default function Comments({
             </div>
             {c.removed ? (
               <p className="count comment-text">
-                Removed by the site operator. The record of it stays: posted at the time shown, text
-                fingerprint <span className="mono">{c.textHash.slice(0, 16)}…</span>
+                Removed by the site owner. A record of it stays: it was posted at the time shown. Its
+                fingerprint is <span className="mono">{c.textHash.slice(0, 16)}…</span>
               </p>
             ) : (
               // Plain text on purpose: addresses in comments are never clickable.
@@ -311,17 +311,17 @@ export default function Comments({
           onChange={(e) => setText(e.target.value)}
         />
         <p className="count" style={{ margin: "4px 0 0" }}>
-          {text.length.toLocaleString()} / {MAX.toLocaleString()}. Comments are permanent and
-          timestamped. They can&apos;t be edited or deleted. No name is shown, and web addresses
-          aren&apos;t clickable. For stronger anonymity, use Tor Browser.
+          {text.length.toLocaleString()} / {MAX.toLocaleString()}. Comments are permanent and show
+          the time they were posted. You can&apos;t edit or delete them. No name is shown, and web
+          addresses can&apos;t be clicked. For extra privacy, use Tor Browser.
         </p>
         {owner && supported ? (
           <label className="opt" style={{ marginTop: 8 }}>
             <input type="checkbox" checked={asAuthor} onChange={(e) => setAsAuthor(e.target.checked)} />
             <b>Post as the author</b>
             <small>
-              Only people you&apos;ve given the private link can tell it&apos;s you. To everyone
-              else it&apos;s an anonymous comment.
+              Only people you&apos;ve given the private link to can tell it&apos;s you. To everyone
+              else it looks like an anonymous comment.
             </small>
           </label>
         ) : null}

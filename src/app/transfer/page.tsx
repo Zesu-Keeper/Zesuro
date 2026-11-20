@@ -80,15 +80,15 @@ export default function Transfer() {
     <div>
       <h1>Move your keys</h1>
       <p className="lede">
-        Your keys live in this browser, for this address only. A different Zesuro address (another domain, or a replacement server) starts empty: your entries would not
-        appear under Mine and your chats would not open. Here you carry them across yourself. Nothing is sent to any server.
+        Your keys are kept in this browser, and only work on this website address. If you use Zesuro at a different address, it starts empty: your posts won&apos;t show up under My posts and your chats
+        won&apos;t open. This page lets you carry your keys across yourself. Nothing is sent to any server.
       </p>
 
       <div className="card">
         <h2>1. On the browser that has your keys</h2>
         <p className="meta">
-          This makes one encrypted bundle of everything this browser holds for Zesuro, and a separate code that opens it. Keep the two apart: send them by different routes. Anyone who
-          gets both can post, reveal and read as you.
+          This makes a locked bundle of everything this browser holds for Zesuro, plus a separate code that unlocks it. Send the two by different routes. Anyone who gets both can
+          post, reveal and read chats as you.
         </p>
         <button className="primary" onClick={makeBundle}>
           Make a bundle and code
@@ -116,7 +116,7 @@ export default function Transfer() {
 
       <div className="card">
         <h2>2. On the other address</h2>
-        <p className="meta">Open this same page there, paste the bundle and type the code. Keys already in that browser are never overwritten.</p>
+        <p className="meta">Open this same page there, paste the bundle and type the code. Keys that are already in that browser are never replaced.</p>
         <textarea rows={4} placeholder="Bundle (starts ZT1.)" value={inText} onChange={(e) => setInText(e.target.value)} />
         <input placeholder="Code" value={inCode} onChange={(e) => setInCode(e.target.value)} autoComplete="off" spellCheck={false} />
         <button className="primary" onClick={check} disabled={!inText.trim() || !inCode.trim()}>
@@ -125,12 +125,12 @@ export default function Transfer() {
         {plan && (
           <div className="warnbox">
             <p>
-              Would add <b>{plan.p.add.length}</b>, already here <b>{plan.p.same.length}</b>, different here and kept as they are <b>{plan.p.keep.length}</b>.
+              Would add <b>{plan.p.add.length}</b>. Already here: <b>{plan.p.same.length}</b>. Different here, so left alone: <b>{plan.p.keep.length}</b>.
             </p>
             {plan.p.deviceKeyConflict ? (
               <p>
-                This browser already has a different identity key, so importing is refused: replacing it would cut you off from what you posted here. Use a browser that has no
-                Zesuro keys yet, or move this browser's own keys the other way.
+                This browser already has its own key, so the import was stopped. Replacing it would cut you off from what you posted here. Use a browser that has no
+                Zesuro keys yet, or move this browser&apos;s keys the other way.
               </p>
             ) : (
               <button className="primary" onClick={apply} disabled={!plan.p.add.length}>

@@ -165,6 +165,10 @@ button.link {
   text-decoration: underline;
   padding: 4px;
 }
+button.link.danger {
+  color: var(--warn);
+  font-weight: 600;
+}
 
 .card {
   background: var(--surface);
