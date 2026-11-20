@@ -1,4 +1,5 @@
 import type { Metadata } from "next";
+import Link from "next/link";
 import Stamp from "@/components/Stamp";
 import { anchorPublicKey, listAnchors } from "@/lib/anchors";
 
@@ -15,17 +16,13 @@ export default function AnchorsPage() {
     <main>
       <h1>Anchors</h1>
       <p className="lede">
-        Every few minutes this site puts a signed stamp on its whole record, like a seal on an
-        envelope. Other people run copies of the site, called mirrors. They keep their own copy of
-        the record, check it against each stamp, and add their own signature with the time they saw
-        it. A mirror refuses to sign if anything it already had has been changed. So once a stamp has
-        been countersigned, nothing before it can be changed, removed or backdated without the
-        mirrors&apos; copies showing it.
+        Every few minutes this site puts a signed stamp on its whole record. Other sites, called
+        mirrors, keep their own copy and check each stamp. If anything had been changed, the copies
+        would no longer match. <Link href="/help#mirrors">How mirrors work</Link>
       </p>
       <p className="meta">
-        You don&apos;t have to take our word for any of this. People who are comfortable with a command line can check it
-        themselves, or run a mirror. The two tools are{" "}
-        <span className="mono">scripts/verify-log.mjs</span> and <span className="mono">scripts/mirror.mjs</span> in the project.
+        You don&apos;t have to take our word for it. The{" "}
+        <Link href="/help/technical#verifying-the-record">technical guide</Link> shows how to check the record yourself.
       </p>
       {key ? <p className="mono">site signing key: {key}</p> : null}
       {anchors.length === 0 ? <p className="empty">No anchors yet.</p> : null}

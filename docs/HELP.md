@@ -58,9 +58,13 @@ Private chat lets someone talk to another person, for example a source and a rep
 4. Compare the safety code by voice or in person. If the codes match, nobody is in the middle.
 5. Either of you can set messages to delete after a time, or delete the whole chat.
 
+### Ending a chat
+
+Press "End chat and delete keys" inside a chat. Every message is removed from the site, and the key on your device is erased. The other person's key is erased as soon as their browser next checks the chat. After that, nobody can read it again. If you only want to forget the chat on your own device, press "Delete my key here". The other person can still read it. The Private chat page also has an erase button that ends every chat at once.
+
 ### Know the limits
 
-You can end a chat at any time. That deletes its messages for both of you and erases the key on both devices. The Private chat page also has an erase button that ends every chat and clears this browser's saved data. Chat is text only. If a chat's key is stolen later, the messages in that chat can be read, because there is no forward secrecy. The site can see that a chat exists and roughly when messages arrive. If you are in real danger, use Tor Browser and a device you trust.
+Chat is text only. If a chat's key is stolen later, the messages in that chat can be read, because there is no forward secrecy. The site can see that a chat exists and roughly when messages arrive. If you are in real danger, use Tor Browser and a device you trust.
 
 ## Is it safe?
 

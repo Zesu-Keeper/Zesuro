@@ -54,7 +54,8 @@ export default function KeyBackup({
       <h2>Save your key</h2>
       <p className="lede">
         Your key is the only thing that proves your posts are yours. Save it somewhere safe, like
-        your photos, a password manager, or a printout.
+        your photos, a password manager, or a printout.{" "}
+        <a href="/help#your-key" target="_blank" rel="noopener noreferrer">Why?</a>
       </p>
       {png ? (
         // eslint-disable-next-line @next/next/no-img-element

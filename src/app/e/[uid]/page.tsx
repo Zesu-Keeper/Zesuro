@@ -96,11 +96,15 @@ export default async function EntryPage({ params }: { params: Promise<{ uid: str
       <h1 style={{ fontSize: "1.1rem" }}>How this is kept safe</h1>
       <div className="card">
         <p className="lede" style={{ marginBottom: 8 }}>
-          This is post number {e.seq}. Each post is linked to the one before it, so its words and
-          the time it was posted can&apos;t be changed without breaking every post after it.
+          This is post number {e.seq}. It is linked to the post before it, so nobody can change
+          its words or its time without it showing.{" "}
+          <Link href="/help#is-it-safe">How this works</Link>
         </p>
         <details>
-          <summary>Technical details, for people who want to check</summary>
+          <summary>Technical details</summary>
+          <p className="meta">
+            For people who want to check it themselves. The <Link href="/help/technical#how-the-cryptography-fits-together">technical guide</Link> explains what these are.
+          </p>
         <p className="mono">entry hash: {e.entryHash}</p>
         <p className="mono">previous hash: {e.prevHash}</p>
         <p className="mono">author commitment: {e.commitment}</p>
@@ -146,20 +150,22 @@ export default async function EntryPage({ params }: { params: Promise<{ uid: str
         ) : null}
         </details>
         <p className="meta">
-          This site stamps the whole record every few minutes, and other people&apos;s copies of it
-          (mirrors) check and sign each stamp. See <Link href="/anchors">Anchors</Link>. Until a
-          mirror has signed a stamp made after this post, the time shown is only this site&apos;s word.
+          Other sites keep copies of the record and sign it every few minutes, so any change would be
+          caught. <Link href="/anchors">See the stamps</Link>. Until one has signed a stamp made after
+          this post, the time shown is only this site&apos;s word.
         </p>
       </div>
 
       {e.status === "revealed" && e.opening ? (
         <details className="card">
           <summary>Check that the author really wrote this</summary>
+          <p className="meta">
+            The author&apos;s key is the proof. The <Link href="/help/technical#checking-who-wrote-a-post">technical guide</Link> shows how to check it.
+          </p>
           {e.opening.v === 2 ? (
             <>
               <p className="meta">
-                This post was sealed with a key made just for it, and its lock covers the exact words,
-                so it can only match this text. Anyone can check:
+                The check, for people who know how:
                 SHA-256 of{" "}
                 <span className="mono">
                   zesuro:commit:v2:&lt;public key&gt;:&lt;salt&gt;:&lt;SHA-256 of the content&gt;

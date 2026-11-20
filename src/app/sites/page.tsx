@@ -75,17 +75,15 @@ export default function SitesPage() {
       <details className="card">
         <summary>For people who want to check this list</summary>
         <p className="meta">
-          The lists are signed with the owner&apos;s key, so they cannot be altered without it being noticed. This page
-          only shows them. To check the signature yourself, you need the owner&apos;s public key from somewhere other than
-          this site, then run{" "}
-          <span className="mono">node scripts/sites.mjs verify --file sites.json --root &lt;key&gt;</span> on the file at{" "}
-          <a href="/api/sites">/api/sites</a>. Most people can skip this.
+          The owner signs these lists so they can&apos;t be changed quietly. This page only shows
+          them. The <a href="/help/technical#mirrors">technical guide</a> explains how to check the
+          signature yourself. Most people can skip this. The raw file is at <a href="/api/sites">/api/sites</a>.
         </p>
         {root ? (
           <p className="meta">
-            The key this site gives: <span className="mono" style={{ wordBreak: "break-all" }}>{root}</span>
+            The owner&apos;s key, as this site shows it: <span className="mono" style={{ wordBreak: "break-all" }}>{root}</span>
             <br />
-            Compare it with a copy from another place before relying on it.
+            Compare it with a copy from somewhere else before you rely on it.
           </p>
         ) : null}
       </details>

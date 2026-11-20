@@ -80,15 +80,14 @@ export default function Transfer() {
     <div>
       <h1>Move your keys</h1>
       <p className="lede">
-        Your keys are kept in this browser, and only work on this website address. If you use Zesuro at a different address, it starts empty: your posts won&apos;t show up under My posts and your chats
-        won&apos;t open. This page lets you carry your keys across yourself. Nothing is sent to any server.
+        Your keys are kept in this browser, so they only work at this website address. To use Zesuro on another device or at another address, carry your keys across here. Nothing is sent to any server.{" "}
+        <a href="/help#using-another-device">More help</a>
       </p>
 
       <div className="card">
         <h2>1. On the browser that has your keys</h2>
         <p className="meta">
-          This makes a locked bundle of everything this browser holds for Zesuro, plus a separate code that unlocks it. Send the two by different routes. Anyone who gets both can
-          post, reveal and read chats as you.
+          This makes a locked bundle of your keys and a separate code that unlocks it. Send the two by different routes, because anyone who gets both can act as you.
         </p>
         <button className="primary" onClick={makeBundle}>
           Make a bundle and code

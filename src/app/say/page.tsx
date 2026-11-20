@@ -415,7 +415,10 @@ export default function SayIt() {
             ) : (
               <>
                 <h2>When do you reveal who said it?</h2>
-                <p className="lede">The words are public now. Your name stays hidden until then.</p>
+                <p className="lede">
+                  The words are public now. Your name stays hidden until then.{" "}
+                  <Link href="/help#choosing-when-your-name-is-shown" target="_blank">More help</Link>
+                </p>
                 {hiddenCount > 0 ? (
                   <p className="lede">
                     {split.parts.length > 0

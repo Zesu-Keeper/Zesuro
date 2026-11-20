@@ -34,6 +34,18 @@ The Mirrors page lists sites the root key approves as faithful copies, and any s
 node scripts/sites.mjs verify --file sites.json --root <root public key>
 ```
 
+### Checking who wrote a post
+
+Every post shows a commitment. The author makes a key just for that post, so the commitment covers the post's exact words. When the author reveals, the post page shows a public key, a salt and a signature. To check it, work out the SHA-256 of `zesuro:commit:v2:<public key>:<salt>:<SHA-256 of the content>` and compare it with the commitment. The post page lists the content string and its hash. Then check the Ed25519 signature over `whenisaid:reveal:v2:<post id>:<name>` with the same public key. Older posts, made before commitments covered the content, only show that the author holds the key: SHA-256 of the public key and salt equals the commitment.
+
+### Moving keys between addresses
+
+The Move your keys page packs everything the browser holds for Zesuro into one bundle and encrypts it with a key made from a separate code. Nothing is sent to a server. The importing side adds only keys it does not already have, and refuses to replace its own device key. The code is in `src/lib/transfer.ts`.
+
+### Private chat in detail
+
+Both browsers make their chat keys locally and agree on them through the invite link. The server stores only encrypted, padded messages and hashes of secrets. Ending a chat marks the room as deleted, removes its messages, and leaves a small marker for 30 days so the other side learns it ended. A browser that sees the marker erases its own key. The code is in `src/lib/chat-crypto.ts` and `src/lib/chat.ts`.
+
 ## Hosting your own server
 
 You can run a private copy to read and check the record. To serve a copy to other people, your address has

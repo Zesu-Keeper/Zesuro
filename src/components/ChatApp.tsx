@@ -495,6 +495,9 @@ function Home() {
           <li>Deleting removes the messages from this site. It can&apos;t remove a copy the other person saved or took a photo of. Scrambled copies can stay in the site&apos;s backups for up to 14 days.</li>
           <li>If you can, compare the safety code with the other person. If the codes match, nobody is listening in the middle.</li>
         </ul>
+        <p className="count">
+          More in the <Link href="/help#private-chat">help guide</Link>.
+        </p>
       </details>
     </main>
   );
