@@ -37,7 +37,7 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
           </header>
           {children}
           <p className="foot">
-            Zesuro records who said what, and when, anonymously, but with verification.
+            Say something now and its exact time is recorded. You choose if and when your name is shown. <Link href="/help">Help</Link>
           </p>
         </div>
       </body>

@@ -205,7 +205,7 @@ export async function joinWith(
   const id = await inviteIdOf(secret);
   const ik = await inviteKey(secret);
   const h = await open(ik, `hello:${id}`, hello);
-  if (!h) throw new Error("This link does not match what the server holds. Do not use it.");
+  if (!h) throw new Error("This link doesn't look right. Don't use it.");
   const pubs = (JSON.parse(dec.decode(h)) as { pubs?: unknown }).pubs;
   if (!Array.isArray(pubs) || !Number.isInteger(slot) || slot < 0 || slot >= pubs.length || typeof pubs[slot] !== "string")
     throw new Error("This link can't be opened any more.");

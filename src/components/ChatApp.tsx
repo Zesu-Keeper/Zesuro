@@ -1071,14 +1071,14 @@ function Room({ id }: { id: string }) {
     for (const it of items) {
       const m = it.msg;
       if (!m) {
-        out[it.id] = "This message could not be read. It was not written by either of you, or it was altered.";
+        out[it.id] = "This message couldn't be read. It may have been changed, or it didn't come from either of you.";
         continue;
       }
       const want = next[m.from];
       if (want === undefined) {
         if (m.n > 0 && !hadTimer.current) out[it.id] = "Earlier messages from this person are missing.";
-      } else if (m.n > want) out[it.id] = "One or more messages before this one are missing.";
-      else if (m.n < want) out[it.id] = "This message is a repeat or out of order.";
+      } else if (m.n > want) out[it.id] = "Some messages before this one are missing.";
+      else if (m.n < want) out[it.id] = "This message is a repeat, or arrived out of order.";
       next[m.from] = Math.max(want ?? 0, m.n + 1);
     }
     return out;

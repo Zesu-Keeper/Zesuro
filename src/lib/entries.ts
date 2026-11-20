@@ -570,7 +570,7 @@ function parseTimelock(raw: unknown, revealAt: number): { round: number; ct: str
     throw bad();
   }
   if (locked !== round) throw bad();
-  if (round !== roundForTime(revealAt)) throw new EntryError("The time-lock does not match the reveal date");
+  if (round !== roundForTime(revealAt)) throw new EntryError("The lock on your name doesn't match the reveal date. Reload the page and try again.");
   return { round, ct, hash: sha256Hex(ct) };
 }
 
@@ -638,7 +638,7 @@ export async function sealEntry(input: SealInput): Promise<PublicEntry> {
       throw new EntryError("Missing backup of the hidden parts");
     secretBlob = input.secretBlob;
   } else if (input.secretCommit != null || input.secret != null || input.secretBlob != null) {
-    throw new EntryError("Nothing is hidden, so there is no hidden data to seal");
+    throw new EntryError("Something went wrong with the hidden words. Reload the page and try again.");
   }
 
   const now = Date.now();
@@ -675,7 +675,7 @@ export async function sealEntry(input: SealInput): Promise<PublicEntry> {
         mode,
       };
       if (!(await verifyOpening(uid, commitment, pkg, 2, content)))
-        throw new EntryError("Authorship proof did not verify");
+        throw new EntryError("We couldn't confirm that this post belongs to your key. Reload the page and try again.");
       if (hasSecret) {
         // Older pages: the server holds the payload until the date. New pages time-lock it instead.
         secretPkg = parseSecret(input.secret, redactions, placeMode === "hidden");
@@ -944,7 +944,7 @@ export async function revealEntry(uid: string, rawOpening: unknown): Promise<Pub
     mode: r.mode,
   };
   if (!(await verifyOpening(uid, r.commitment, op, Number(r.commit_v ?? 1), content)))
-    throw new EntryError("That key did not create this entry, or this entry's text is not what the key sealed", 403);
+    throw new EntryError("That key didn't create this post, or the post has been changed.", 403);
   // A dated entry already holds the author's signed name from when it was sealed. Revealing
   // early only brings the date forward: the key proves authorship, the sealed name is shown.
   const sealed = r.mode === "date" && r.reveal_pkg ? (JSON.parse(r.reveal_pkg) as Opening) : null;
