@@ -14,7 +14,8 @@ const QUESTIONS = [
  * used, not through broken encryption. The answers are kept only for this tab and never leave the browser.
  */
 export default function SafetyCheck({ viaTor, onion }: { viaTor: boolean; onion: string | null }) {
-  const [open, setOpen] = useState(false);
+  // null until the browser has said whether this tab already did the check, so nothing wrong flashes up first.
+  const [open, setOpen] = useState<boolean | null>(null);
   const [yes, setYes] = useState<boolean[]>([false, false, false]);
   useEffect(() => {
     try {
@@ -34,6 +35,7 @@ export default function SafetyCheck({ viaTor, onion }: { viaTor: boolean; onion:
     setOpen(false);
   }
 
+  if (open === null) return null;
   if (!open)
     return (
       <p className="count safety-mini">

@@ -53,6 +53,7 @@ import { createHash, createPrivateKey, createPublicKey, generateKeyPairSync, sig
 import { ZERO, anchorSigner, snapshotSigner, authorityExtends, authorityProblem, commentHash, commentProblem, currentWriter, entryHash, entryProblem, isWriterKey } from "./log-core.mjs";
 import { isHybridKey } from "./hybrid-sig.mjs";
 import { checkCode } from "./code-check.mjs";
+import { appendOnlyProblems, fetchLog, logProblems } from "./release-log-core.mjs";
 import { classify, sitesProblem } from "./sites-core.mjs";
 
 // ---------------------------------------------------------------- options
@@ -424,6 +425,19 @@ async function round() {
       if (!c.problems.length) console.log(`  code: all ${c.checked} scripts and stylesheets match the signed release`);
     } catch (e) { console.log(`  code check could not run: ${e.message}`); failed = true; }
   }
+  // The release log: keep a copy, and complain if a release ever changes or disappears from it.
+  try {
+    const log = await fetchLog(opts.source);
+    const file = path.join(opts.dir, "release-log.json");
+    let before = [];
+    try { before = JSON.parse(fs.readFileSync(file, "utf8")); } catch { /* first time */ }
+    const bad = [...appendOnlyProblems(before, log.releases), ...logProblems(log.releases, state.root || "")];
+    for (const p of bad) alert(opts.source, "release-log", p);
+    if (!bad.length) {
+      fs.writeFileSync(file, JSON.stringify(log.releases));
+      console.log(`  release log: ${log.releases.length} release(s), all in order`);
+    }
+  } catch (e) { console.log(`  release log could not be checked: ${e.message}`); }
   for (const p of opts.peers) {
     try { await crossCheck(p); }
     catch (e) { console.log(`  peer ${p}: could not be reached (${e.message})`); failed = true; }

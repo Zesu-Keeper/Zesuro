@@ -1,7 +1,6 @@
 "use client";
 
 import { createContext, useCallback, useContext, useEffect, useMemo, useRef, useState, useSyncExternalStore } from "react";
-import Link from "next/link";
 import Stamp from "./Stamp";
 import {
   acceptJoin,
@@ -51,6 +50,7 @@ import type { CommitContent } from "@/lib/commit";
 import { postWithTicket, warmTicket } from "@/lib/ticket-client";
 import { wipeBrowser } from "@/lib/wipe";
 import { randomChatOrigin } from "@/lib/chat-hosts";
+import { inAddOn, site, siteOrigin } from "@/lib/site";
 
 type Route = { view: "home" } | { view: "join"; secret: string } | { view: "room"; id: string };
 
@@ -63,10 +63,19 @@ function readRoute(): Route {
   return { view: "home" };
 }
 
+/** A link to a page of the site. Plain on purpose: in the add-on it opens the website in a browser tab. */
+function Link({ href, children, target }: { href: string; children: React.ReactNode; target?: string }) {
+  return (
+    <a href={site(href)} target={inAddOn() ? "_blank" : target} rel={inAddOn() || target ? "noreferrer" : undefined}>
+      {children}
+    </a>
+  );
+}
+
 /** True on a private chat address: nothing there may say what site this is. */
 const OnChatHost = createContext(false);
 /** The path the chat is served from: "/" on a private address, "/chat" on the main site. */
-const chatPath = () => (location.pathname === "/" ? "/" : "/chat");
+const chatPath = () => (inAddOn() ? location.pathname : location.pathname === "/" ? "/" : "/chat");
 
 function go(hash: string) {
   // replaceState keeps link secrets out of the back button's history.
@@ -369,7 +378,7 @@ function Home({ apexes, tor }: { apexes: string[]; tor: { via: boolean; onion: s
       for (const r of loadChats().rooms.slice(0, 20)) {
         try {
           const k = await roomKeys(r.master, r.id);
-          const res = await fetch(`/api/chat/rooms/${r.id}?after=2147483647`, { cache: "no-store", headers: { "x-chat-auth": k.token } });
+          const res = await fetch(site(`/api/chat/rooms/${r.id}?after=2147483647`), { cache: "no-store", headers: { "x-chat-auth": k.token } });
           if (res.status === 410) {
             dropRoom(r.id);
             ended++;
@@ -401,7 +410,7 @@ function Home({ apexes, tor }: { apexes: string[]; tor: { via: boolean; onion: s
     async function tick() {
       for (const inv of loadChats().invites) {
         try {
-          const r = await fetch(`/api/chat/invites/${inv.id}`, {
+          const r = await fetch(site(`/api/chat/invites/${inv.id}`), {
             cache: "no-store",
             headers: { "x-chat-owner": inv.ownerSecret },
           });
@@ -488,7 +497,7 @@ function Home({ apexes, tor }: { apexes: string[]; tor: { via: boolean; onion: s
   async function cancel(inv: StoredInvite) {
     if (!window.confirm("Cancel this link? Nobody else will be able to open it. Chats already started carry on.")) return;
     try {
-      await fetch(`/api/chat/invites/${inv.id}`, { method: "DELETE", headers: { "x-chat-owner": inv.ownerSecret } });
+      await fetch(site(`/api/chat/invites/${inv.id}`), { method: "DELETE", headers: { "x-chat-owner": inv.ownerSecret } });
     } catch {
       /* the local copy goes either way */
     }
@@ -496,7 +505,7 @@ function Home({ apexes, tor }: { apexes: string[]; tor: { via: boolean; onion: s
     reload();
   }
 
-  const linkOf = (inv: StoredInvite) => `${location.origin}${chatPath()}#${inviteFragment(inv.secret)}`;
+  const linkOf = (inv: StoredInvite) => `${siteOrigin()}${inAddOn() ? "/chat" : chatPath()}#${inviteFragment(inv.secret)}`;
 
   // The emergency button: end every chat for both people, cancel unused links, then erase this browser's copies.
   async function endAllAndErase() {
@@ -511,14 +520,14 @@ function Home({ apexes, tor }: { apexes: string[]; tor: { via: boolean; onion: s
     for (const r of s.rooms) {
       try {
         const k = await roomKeys(r.master, r.id);
-        await fetch(`/api/chat/rooms/${r.id}`, { method: "DELETE", headers: { "x-chat-auth": k.token } });
+        await fetch(site(`/api/chat/rooms/${r.id}`), { method: "DELETE", headers: { "x-chat-auth": k.token } });
       } catch {
         /* offline: the local keys are still erased below */
       }
     }
     for (const inv of s.invites) {
       try {
-        await fetch(`/api/chat/invites/${inv.id}`, { method: "DELETE", headers: { "x-chat-owner": inv.ownerSecret } });
+        await fetch(site(`/api/chat/invites/${inv.id}`), { method: "DELETE", headers: { "x-chat-owner": inv.ownerSecret } });
       } catch {
         /* same */
       }
@@ -817,7 +826,7 @@ function Join({ secret }: { secret: string }) {
         const mine = s.rooms.find((r) => r.via === id && r.role === "b");
         if (mine) return go(`r=${mine.id}`);
         if (s.invites.some((i) => i.id === id)) return setState("own");
-        const r = await fetch(`/api/chat/invites/${id}`, { cache: "no-store" });
+        const r = await fetch(site(`/api/chat/invites/${id}`), { cache: "no-store" });
         if (off) return;
         if (r.status === 404) return setState("invalid");
         const d = await r.json();
@@ -851,7 +860,7 @@ function Join({ secret }: { secret: string }) {
           !addRoom(mine)
         )
           throw new Error("This browser is not letting the site store the chat key. Private windows and blocked storage won't work.");
-        const res = await fetch(`/api/chat/invites/${id}/join`, {
+        const res = await fetch(site(`/api/chat/invites/${id}/join`), {
           method: "POST",
           headers: { "content-type": "application/json" },
           body: JSON.stringify({ room: j.roomId, join: j.join, auth: j.authHash, slot: slot.current }),
@@ -864,7 +873,7 @@ function Join({ secret }: { secret: string }) {
         if (res.status === 410) return setState("used");
         if (res.status === 409 && attempt < 4) {
           // Someone else opened a multi-use link at the same moment: take the next free place.
-          const f = await fetch(`/api/chat/invites/${id}`, { cache: "no-store" });
+          const f = await fetch(site(`/api/chat/invites/${id}`), { cache: "no-store" });
           const d = await f.json().catch(() => null);
           if (f.ok && d?.open) {
             hello.current = d.hello;
@@ -1102,7 +1111,7 @@ function Room({ id }: { id: string }) {
         if (m?.from !== "a" || m.kind !== "proof" || checkedProofs.current.has(it.id)) continue;
         let st: ProofState = { status: "gone" };
         try {
-          const r = await fetch(`/api/entries/${encodeURIComponent(m.uid)}`, { cache: "no-store" });
+          const r = await fetch(site(`/api/entries/${encodeURIComponent(m.uid)}`), { cache: "no-store" });
           if (r.ok) {
             const e = (await r.json()).entry as CommitContent & { commitment: string; commitV: number; createdAt: number };
             const holds =
@@ -1192,7 +1201,7 @@ function Room({ id }: { id: string }) {
     if (!keys || !room) return;
     setErr(null);
     try {
-      const r = await fetch(`/api/chat/rooms/${room.id}`, {
+      const r = await fetch(site(`/api/chat/rooms/${room.id}`), {
         method: "PATCH",
         headers: { "content-type": "application/json", "x-chat-auth": keys.token },
         body: JSON.stringify({ ttl: v }),
@@ -1224,7 +1233,7 @@ function Room({ id }: { id: string }) {
       return;
     try {
       if (keys) {
-        const r = await fetch(`/api/chat/rooms/${room.id}`, { method: "DELETE", headers: { "x-chat-auth": keys.token } });
+        const r = await fetch(site(`/api/chat/rooms/${room.id}`), { method: "DELETE", headers: { "x-chat-auth": keys.token } });
         if (!r.ok && r.status !== 410 && r.status !== 404) throw new Error("Could not end the chat");
       }
       wipeScreen();
@@ -1270,7 +1279,7 @@ function Room({ id }: { id: string }) {
       else if (m.kind === "proof") {
         const p = proofs[it.id];
         lines.push(
-          `${head}: PROOF OF ENTRY ${location.origin}/e/${m.uid} entry-key=${m.pub} salt=${m.salt} result=${p?.status ?? "unchecked"}`,
+          `${head}: PROOF OF ENTRY ${siteOrigin()}/e/${m.uid} entry-key=${m.pub} salt=${m.salt} result=${p?.status ?? "unchecked"}`,
           `    To check it yourself: SHA-256 of "zesuro:commit:v2:" + entry-key + ":" + salt + ":" + SHA-256(content) must equal the entry's public commitment (the entry page shows the content and its hash).`,
         );
       } else if (m.kind === "timer") lines.push(`${head}: set the timer to "${timerLabel(m.ttl)}"`);
@@ -1488,7 +1497,7 @@ function Room({ id }: { id: string }) {
         </button>
       </div>
 
-      {role === "a" && !onChat ? (
+      {role === "a" && !onChat && !inAddOn() ? (
         <div className="card">
           <p className="lede" style={{ marginBottom: 8 }}>
             <b>Show them a post is yours.</b> Pick one of your posts. Their browser will check it

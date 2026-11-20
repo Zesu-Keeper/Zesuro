@@ -10,6 +10,7 @@
 // several places, and from people who are not the operator, makes targeting harder, not impossible.
 import { createHash } from "node:crypto";
 import { verify as hybridVerify, isHybridKey } from "./hybrid-sig.mjs";
+import { fetchLog, logProblems } from "./release-log-core.mjs";
 
 const PAGES = ["/", "/say", "/mine", "/chat", "/transfer"];
 const ASSET = /(?:src|href)="(\/_next\/static\/[^"?#]+\.(?:js|css))(?:\?[^"#]*)?"/g;
@@ -26,6 +27,18 @@ export async function checkCode(base, root, { fetchImpl = fetch, pages = PAGES }
   let m;
   try { m = JSON.parse(rel.manifest); } catch { return { release: null, problems: ["the signed release list is not JSON"] }; }
   if (m?.v !== 1 || typeof m.files !== "object" || m.files === null) return { release: null, problems: ["the signed release list is malformed"] };
+
+  // The release being served must be the newest entry of the public release log, so it can't be a one-off.
+  try {
+    const relText = JSON.stringify(rel);
+    const log = await fetchLog(base, fetchImpl);
+    problems.push(...logProblems(log.releases, root));
+    const last = log.releases[log.releases.length - 1];
+    if (!last) problems.push("the release log is empty");
+    else if (JSON.stringify(JSON.parse(last.release)) !== relText) problems.push("the release being served is not the newest entry in the release log");
+  } catch (e) {
+    problems.push(`the release log could not be checked (${e.message})`);
+  }
 
   const seen = new Set();
   for (const page of pages) {

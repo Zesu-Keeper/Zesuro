@@ -2,6 +2,8 @@
 // refuses posts without one, sent implausibly fast, or reusing one (see lib/spam.ts). A ticket
 // works once, so each post uses up the one in hand and a fresh one is fetched for the next.
 
+import { site } from "./site";
+
 let cur: { ticket: string; at: number } | null = null;
 let inflight: Promise<void> | null = null;
 const WAIT_MS = 2_300;
@@ -12,7 +14,7 @@ function fresh(): Promise<void> {
   // One fetch at a time, however many buttons on the page ask for a ticket together.
   return (inflight ??= (async () => {
     try {
-      const r = await fetch("/api/ticket", { cache: "no-store" });
+      const r = await fetch(site("/api/ticket"), { cache: "no-store" });
       const d = await r.json();
       if (!r.ok || typeof d.ticket !== "string") throw new Error(d.error || "Could not prepare the form");
       cur = { ticket: d.ticket, at: Date.now() };
@@ -39,7 +41,7 @@ export async function postWithTicket(
     cur = null; // spent whatever happens: the server accepts a ticket once
     const age = Date.now() - used.at;
     if (age < WAIT_MS) await sleep(WAIT_MS - age);
-    const res = await fetch(url, {
+    const res = await fetch(site(url), {
       method: "POST",
       headers: { "content-type": "application/json" },
       body: JSON.stringify({ ...body, ticket: used.ticket, website }),

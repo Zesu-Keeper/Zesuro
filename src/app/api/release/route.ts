@@ -2,6 +2,7 @@ import fs from "node:fs";
 import path from "node:path";
 import { NextResponse } from "next/server";
 import { jsonError, rateLimited, tooMany } from "@/lib/http";
+import { syncReleaseLog } from "@/lib/release-log";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -14,6 +15,7 @@ export const dynamic = "force-dynamic";
 export function GET(req: Request) {
   try {
     if (rateLimited(req, "release", 60, 60_000)) return tooMany();
+    syncReleaseLog(); // the release being served is always the newest entry in the public release log
     let text: string;
     try {
       text = fs.readFileSync(path.join(process.cwd(), "data", "release.json"), "utf8");

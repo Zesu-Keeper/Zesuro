@@ -3,6 +3,7 @@
 // (lib/chat-ratchet.ts), the history is kept here, not re-read from the site.
 
 import type { Body, Message, RoomKeys } from "./chat-crypto";
+import { site } from "./site";
 import { canSend, ratchetDecrypt, ratchetEncrypt, startAsCreator, startAsOpener } from "./chat-ratchet";
 import { loadRoomState, saveRoomState, type RoomState, type StoredItem, type StoredRoom } from "./chat-store";
 
@@ -60,7 +61,7 @@ export function pollRoom(room: StoredRoom, keys: RoomKeys): Promise<Snapshot> {
     if (!st) return { items: [], ttl: 0, canSend: false, gone: "missing" as const };
     let ttl = 0;
     for (;;) {
-      const r = await fetch(`/api/chat/rooms/${room.id}?after=${st.cursor}`, {
+      const r = await fetch(site(`/api/chat/rooms/${room.id}?after=${st.cursor}`), {
         cache: "no-store",
         headers: { "x-chat-auth": keys.token },
       });
@@ -98,7 +99,7 @@ export function sendMessage(room: StoredRoom, keys: RoomKeys, body: Body): Promi
     // Save first: the key that locked this message is already spent, and must never be used twice.
     st.ratchet = out.state;
     if (!(await saveRoomState(room.id, !!room.mem, st))) throw new Error("This browser would not save the chat");
-    const res = await fetch(`/api/chat/rooms/${room.id}`, {
+    const res = await fetch(site(`/api/chat/rooms/${room.id}`), {
       method: "POST",
       headers: { "content-type": "application/json", "x-chat-auth": keys.token },
       body: JSON.stringify({ blob: out.blob }),
@@ -128,7 +129,7 @@ export async function ensureHello(room: StoredRoom, keys: RoomKeys): Promise<voi
     const out = await ratchetEncrypt(again.ratchet, room.id, { kind: "hello" });
     again.ratchet = out.state;
     if (!(await saveRoomState(room.id, !!room.mem, again))) return;
-    const res = await fetch(`/api/chat/rooms/${room.id}`, {
+    const res = await fetch(site(`/api/chat/rooms/${room.id}`), {
       method: "POST",
       headers: { "content-type": "application/json", "x-chat-auth": keys.token },
       body: JSON.stringify({ blob: out.blob }),
