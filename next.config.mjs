@@ -22,6 +22,8 @@ const nextConfig = {
       { source: "/:path*", headers: common },
       // API answers are live and sometimes private to the moment: never cache them.
       { source: "/api/:path*", headers: [{ key: "Cache-Control", value: "no-store" }] },
+      // The chat page is never kept in the browser's cache.
+      { source: "/chat", headers: [{ key: "Cache-Control", value: "no-store" }] },
     ];
   },
 };

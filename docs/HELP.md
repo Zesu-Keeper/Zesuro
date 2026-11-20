@@ -60,7 +60,7 @@ Private chat lets someone talk to another person, for example a source and a rep
 
 ### Know the limits
 
-Chat is text only. If a chat's key is stolen later, the messages in that chat can be read, because there is no forward secrecy. The site can see that a chat exists and roughly when messages arrive. If you are in real danger, use Tor Browser and a device you trust.
+You can end a chat at any time. That deletes its messages for both of you and erases the key on both devices. The Private chat page also has an erase button that ends every chat and clears this browser's saved data. Chat is text only. If a chat's key is stolen later, the messages in that chat can be read, because there is no forward secrecy. The site can see that a chat exists and roughly when messages arrive. If you are in real danger, use Tor Browser and a device you trust.
 
 ## Is it safe?
 

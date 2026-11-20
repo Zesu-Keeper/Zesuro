@@ -50,6 +50,7 @@ import {
 } from "@/lib/client-crypto";
 import type { CommitContent } from "@/lib/commit";
 import { postWithTicket, warmTicket } from "@/lib/ticket-client";
+import { wipeBrowser } from "@/lib/wipe";
 
 type Route = { view: "home" } | { view: "join"; secret: string } | { view: "room"; id: string };
 
@@ -271,6 +272,60 @@ function Home() {
 
   const linkOf = (inv: StoredInvite) => `${location.origin}/chat#${inviteFragment(inv.secret)}`;
 
+  // The emergency button: end every chat for both people, cancel unused links, then erase this browser's copies.
+  async function endAllAndErase() {
+    if (
+      !window.confirm(
+        "End every chat and erase everything?\n\nEvery chat is ended for both of you and its messages are deleted from this site. Links you haven't used are cancelled. This browser forgets all of its chat keys and saved copies of the site. Your post keys are not touched. This can't be undone.",
+      )
+    )
+      return;
+    setBusy(true);
+    const s = loadChats();
+    for (const r of s.rooms) {
+      try {
+        const k = await roomKeys(r.master, r.id);
+        await fetch(`/api/chat/rooms/${r.id}`, { method: "DELETE", headers: { "x-chat-auth": k.token } });
+      } catch {
+        /* offline: the local keys are still erased below */
+      }
+    }
+    for (const inv of s.invites) {
+      try {
+        await fetch(`/api/chat/invites/${inv.id}`, { method: "DELETE", headers: { "x-chat-owner": inv.ownerSecret } });
+      } catch {
+        /* same */
+      }
+    }
+    await wipeBrowser("chats");
+    reload();
+    setBusy(false);
+    setNote("Done. Every chat was ended and this browser has forgotten them.");
+  }
+
+  async function eraseChatsHere() {
+    if (
+      !window.confirm(
+        "Erase your chats from this browser only?\n\nYou won't be able to read them here again. The chats stay on the site for the other person, and nothing is deleted from the site.",
+      )
+    )
+      return;
+    await wipeBrowser("chats");
+    reload();
+    setNote("Done. This browser has forgotten its chats.");
+  }
+
+  async function eraseEverything() {
+    if (
+      !window.confirm(
+        "Erase everything Zesuro saved in this browser?\n\nThis also deletes the keys to your own posts. Unless you saved a backup of your key, you will never be able to reveal them. Chats are not ended for the other person. This can't be undone.",
+      )
+    )
+      return;
+    await wipeBrowser("all");
+    window.location.href = "/";
+  }
+
   return (
     <main>
       <h1>Private chat</h1>
@@ -399,6 +454,37 @@ function Home() {
         A chat only opens in the browser that started or joined it. To use your chats on another
         device, use <Link href="/transfer">Move your keys</Link>, which locks them with a separate code.
       </p>
+
+      <details>
+        <summary>Erase chats from this browser</summary>
+        <p className="count">
+          Use this if someone else might get hold of this device, or when you&apos;re finished.
+        </p>
+        <div className="row" style={{ justifyContent: "flex-start" }}>
+          <button type="button" className="danger" onClick={endAllAndErase} disabled={busy}>
+            End all my chats and erase them
+          </button>
+        </div>
+        <p className="count">
+          Ends every chat for both people and deletes the messages from this site. Cancels links you
+          haven&apos;t used. Then this browser forgets the chat keys and clears its saved copies of the site.
+        </p>
+        <div className="row" style={{ justifyContent: "flex-start" }}>
+          <button type="button" onClick={eraseChatsHere}>Only erase them from this browser</button>
+        </div>
+        <p className="count">The chats stay on the site for the other person. You just can&apos;t read them here again.</p>
+        <div className="row" style={{ justifyContent: "flex-start" }}>
+          <button type="button" onClick={eraseEverything}>Erase everything Zesuro saved in this browser</button>
+        </div>
+        <p className="count">
+          This also deletes the keys to your own posts, so only do it if you have a backup of your key.
+        </p>
+        <p className="count">
+          Erasing can&apos;t clear your browser&apos;s history (the address of a chat link may still be
+          listed there), files you saved such as transcripts, or screenshots. For the fewest traces, open
+          chats in a private window or in Tor Browser, and close it when you&apos;re done.
+        </p>
+      </details>
 
       <details>
         <summary>What this does and doesn&apos;t protect</summary>
