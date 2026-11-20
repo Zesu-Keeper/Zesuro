@@ -15,9 +15,10 @@ const accepted = await C.acceptJoin(inv.secret, inv.privs[0], j.roomId, j.join, 
 ok(accepted && accepted.master === j.master, "both sides reach the same master");
 ok(typeof j.ratchetPub === "string" && j.ratchetPriv, "the opener keeps a ratchet key pair");
 ok(accepted.theirPub === j.ratchetPub, "the creator learns the opener's ratchet key");
+ok(accepted.theirKem === j.kem.pk, "and the opener's post-quantum key");
 
-let A = await R.startAsCreator(accepted.master, j.roomId, accepted.theirPub);
-let B = await R.startAsOpener(j.master, j.roomId, j.ratchetPriv, j.ratchetPub);
+let A = await R.startAsCreator(accepted.master, j.roomId, accepted.theirPub, accepted.theirKem);
+let B = await R.startAsOpener(j.master, j.roomId, j.ratchetPriv, j.ratchetPub, j.kem);
 const rid = j.roomId;
 ok(R.canSend(A) && !R.canSend(B), "the creator can send first; the opener has to wait");
 
@@ -36,6 +37,7 @@ const recv = async (side, blob) => {
 const m1 = await send("a", { kind: "hello" });
 const r1 = await recv("b", m1.blob);
 ok(r1 && r1.msg.kind === "hello" && r1.msg.from === "a" && r1.msg.v === 2, "opener reads the creator's first message");
+ok(B.kemPk !== j.kem.pk && A.kemTheirs === j.kem.pk, "the opener retired its first post-quantum key after using it");
 ok(R.canSend(B), "the opener can send after hearing from the creator");
 const m2 = await send("b", { kind: "text", text: "hi from b" });
 ok((await recv("a", m2.blob)).msg.text === "hi from b", "creator reads the reply");
@@ -129,8 +131,22 @@ await recv("b", small.blob); await recv("b", small2.blob);
 const inv2 = await C.newInvite(1);
 const j2 = await C.joinWith(inv2.secret, inv2.hello, 0);
 const acc2 = await C.acceptJoin(inv2.secret, inv2.privs[0], j2.roomId, j2.join, 0);
-const A2 = await R.startAsCreator(acc2.master, j2.roomId, acc2.theirPub);
+const A2 = await R.startAsCreator(acc2.master, j2.roomId, acc2.theirPub, acc2.theirKem);
 const first2 = await R.ratchetEncrypt(A2, j2.roomId, { kind: "hello" });
 ok((await R.ratchetDecrypt(B, j2.roomId, first2.blob)) === null, "a message from another chat does not open here");
 
+// the post-quantum layer: breaking every Diffie-Hellman key is not enough without the ML-KEM secret
+{
+  const y = await R.ratchetEncrypt(B, rid, { kind: "text", text: "ping" });
+  B = y.state;
+  const ya = await R.ratchetDecrypt(A, rid, y.blob); A = ya.state; // A starts a new run, locked to B's ML-KEM key
+  const q = await R.ratchetEncrypt(A, rid, { kind: "text", text: "quantum" });
+  A = q.state;
+  const crippled = JSON.parse(JSON.stringify(B));
+  crippled.kemSk = R.kemPair().sk; // as if someone had every DH secret but not B's ML-KEM secret
+  ok((await R.ratchetDecrypt(crippled, rid, q.blob)) === null, "without the post-quantum secret the new run can't be opened");
+  const r = await R.ratchetDecrypt(B, rid, q.blob);
+  ok(r && r.msg.text === "quantum", "with it, it opens");
+  B = r.state;
+}
 console.log(`All ${n} chat ratchet checks passed.`);

@@ -12,7 +12,7 @@ import { HEX64, UUID } from "./opening";
 // whoever proves they hold a room's key, and to delete on request or on a timer.
 
 const B64U = /^[A-Za-z0-9_-]+$/;
-const MAX_JOIN = 600;
+const MAX_JOIN = 4_000; // includes the opener's post-quantum public key
 const MAX_HELLO = 16_000; // one public key per allowed use of the link
 const MAX_BLOB = 46_000; // 32 KiB padded plaintext + IV + tag, base64url
 const MAX_MESSAGES = 2_000; // per room

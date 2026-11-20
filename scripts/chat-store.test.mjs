@@ -97,4 +97,17 @@ const state = (marker) => ({ v: 2, ratchet: { v: 2, marker }, cursor: 3, own: []
   ok(st.addRoom(room("x")) === false, "a browser that refuses to store is reported");
 }
 
+// the default lock uses Argon2id (cheap settings here, so the test is quick)
+{
+  const L = kv(), Se = kv();
+  const st = S.createChatStore(L, Se);
+  st.addRoom(room("a1"));
+  ok(await st.setPasscode("an argon passcode", 5, { m: 256, t: 1 }), "an Argon2id lock can be set");
+  ok(JSON.parse(L.getItem(S.LOCK_KEY)).kdf === "argon2id", "the setting records Argon2id");
+  ok(S.ARGON.m >= 65536 && S.ARGON.t >= 2, "the real default is at least 64 MiB and 2 passes");
+  const st2 = S.createChatStore(L, Se);
+  ok(!(await st2.unlock("wrong one here")) && await st2.unlock("an argon passcode"), "it opens only with the right passcode");
+  ok(st2.findRoom("a1"), "and the chat is back");
+}
+
 console.log(`All ${n} chat store checks passed.`);

@@ -427,9 +427,9 @@ function Home({ apexes, tor }: { apexes: string[]; tor: { via: boolean; onion: s
             if (room.deleted || findRoom(room.id)) continue;
             const got = await acceptJoin(inv.secret, inv.privs?.[room.slot] ?? null, room.id, room.join, room.slot);
             if (got) {
-              const mine: StoredRoom = { id: room.id, role: "a", master: got.master, createdAt: room.createdAt, via: inv.id, v: 2, ...(inv.mem ? { mem: true } : {}) };
+              const mine: StoredRoom = { id: room.id, role: "a", master: got.master, createdAt: room.createdAt, via: inv.id, v: 3, ...(inv.mem ? { mem: true } : {}) };
               // The chat's first secret state is written before the room is listed, so it can never exist without it.
-              if (!(await startRoom(mine, { kind: "creator", theirPub: got.theirPub })) || !addRoom(mine)) continue;
+              if (!(await startRoom(mine, { kind: "creator", theirPub: got.theirPub, theirKem: got.theirKem })) || !addRoom(mine)) continue;
               // The key for this chat is no longer needed, and nothing may be able to re-derive it.
               eraseInviteKey(inv.id, room.slot);
               // Say a first hello now if we can, so the other person can reply straight away.
@@ -854,9 +854,9 @@ function Join({ secret }: { secret: string }) {
       for (let attempt = 0; ; attempt++) {
         const j = await joinWith(secret, hello.current, slot.current);
         // Store the key before using up the link, so a refused write can't strand the chat.
-        const mine: StoredRoom = { id: j.roomId, role: "b", master: j.master, createdAt: Date.now(), via: id, v: 2, ...(keepTab ? { mem: true } : {}) };
+        const mine: StoredRoom = { id: j.roomId, role: "b", master: j.master, createdAt: Date.now(), via: id, v: 3, ...(keepTab ? { mem: true } : {}) };
         if (
-          !(await startRoom(mine, { kind: "opener", priv: j.ratchetPriv, pub: j.ratchetPub })) ||
+          !(await startRoom(mine, { kind: "opener", priv: j.ratchetPriv, pub: j.ratchetPub, kem: j.kem })) ||
           !addRoom(mine)
         )
           throw new Error("This browser is not letting the site store the chat key. Private windows and blocked storage won't work.");
@@ -976,7 +976,7 @@ function Room({ id }: { id: string }) {
   const hadTimer = useRef(room?.hadTimer ?? false);
   const bottom = useRef<HTMLDivElement>(null);
   const role = room?.role ?? "b";
-  const legacy = !!room && room.v !== 2;
+  const legacy = !!room && room.v !== 3;
 
   useEffect(() => {
     if (!room) return;
@@ -1014,7 +1014,7 @@ function Room({ id }: { id: string }) {
   }, [gone, room]);
 
   const poll = useCallback(async () => {
-    if (!keys || !room || room.v !== 2 || polling.current) return;
+    if (!keys || !room || room.v !== 3 || polling.current) return;
     polling.current = true;
     try {
       const snap = await pollRoom(room, keys);
@@ -1032,7 +1032,7 @@ function Room({ id }: { id: string }) {
   }, [keys, room]);
 
   useEffect(() => {
-    if (!keys || !room || room.v !== 2) return;
+    if (!keys || !room || room.v !== 3) return;
     let stop = false;
     let timer: ReturnType<typeof setTimeout>;
     const loop = async () => {

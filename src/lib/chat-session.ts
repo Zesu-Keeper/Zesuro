@@ -27,16 +27,16 @@ function exclusive<T>(id: string, fn: () => Promise<T>): Promise<T> {
 }
 
 type Start =
-  | { kind: "creator"; theirPub: string }
-  | { kind: "opener"; priv: JsonWebKey; pub: string };
+  | { kind: "creator"; theirPub: string; theirKem: string }
+  | { kind: "opener"; priv: JsonWebKey; pub: string; kem: { sk: string; pk: string } };
 
 /** Makes a chat's first state, right after the key exchange. */
 export async function startRoom(room: StoredRoom, start: Start): Promise<boolean> {
   const ratchet =
     start.kind === "creator"
-      ? await startAsCreator(room.master, room.id, start.theirPub)
-      : await startAsOpener(room.master, room.id, start.priv, start.pub);
-  return saveRoomState(room.id, !!room.mem, { v: 2, ratchet, cursor: 0, own: [], items: [] });
+      ? await startAsCreator(room.master, room.id, start.theirPub, start.theirKem)
+      : await startAsOpener(room.master, room.id, start.priv, start.pub, start.kem);
+  return saveRoomState(room.id, !!room.mem, { v: 3, ratchet, cursor: 0, own: [], items: [] });
 }
 
 const snap = (s: RoomState, ttl: number, gone: Snapshot["gone"] = null): Snapshot => ({

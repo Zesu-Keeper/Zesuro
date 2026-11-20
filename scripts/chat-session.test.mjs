@@ -47,14 +47,14 @@ async function makeChat({ memA = false, memB = false } = {}) {
   SRV.createInvite({ id: inv.id, owner: inv.ownerHash, hello: inv.hello, maxUses: 1 });
   as("B");
   const j = await C.joinWith(inv.secret, inv.hello, 0);
-  const roomB = { id: j.roomId, role: "b", master: j.master, createdAt: Date.now(), v: 2, ...(memB ? { mem: true } : {}) };
-  ok(await SESS.startRoom(roomB, { kind: "opener", priv: j.ratchetPriv, pub: j.ratchetPub }), "the opener's state is saved");
+  const roomB = { id: j.roomId, role: "b", master: j.master, createdAt: Date.now(), v: 3, ...(memB ? { mem: true } : {}) };
+  ok(await SESS.startRoom(roomB, { kind: "opener", priv: j.ratchetPriv, pub: j.ratchetPub, kem: j.kem }), "the opener's state is saved");
   SRV.joinInvite(inv.id, { room: j.roomId, join: j.join, auth: j.authHash, slot: 0 });
   as("A");
   const st = SRV.inviteStatus(inv.id, inv.ownerSecret);
   const got = await C.acceptJoin(inv.secret, inv.privs[0], st.rooms[0].id, st.rooms[0].join, 0);
-  const roomA = { id: st.rooms[0].id, role: "a", master: got.master, createdAt: Date.now(), v: 2, ...(memA ? { mem: true } : {}) };
-  ok(await SESS.startRoom(roomA, { kind: "creator", theirPub: got.theirPub }), "the creator's state is saved");
+  const roomA = { id: st.rooms[0].id, role: "a", master: got.master, createdAt: Date.now(), v: 3, ...(memA ? { mem: true } : {}) };
+  ok(await SESS.startRoom(roomA, { kind: "creator", theirPub: got.theirPub, theirKem: got.theirKem }), "the creator's state is saved");
   return { roomA, roomB, keysA: await C.roomKeys(got.master, roomA.id), keysB: await C.roomKeys(j.master, roomB.id) };
 }
 

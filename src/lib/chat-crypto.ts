@@ -26,6 +26,7 @@
 // sender's running number, so a dropped, repeated or reordered message shows.
 
 import { commitInput, contentString, type CommitContent } from "./commit";
+import { ml_kem768 } from "@noble/post-quantum/ml-kem.js";
 
 const enc = new TextEncoder();
 const dec = new TextDecoder();
@@ -109,6 +110,12 @@ async function open(key: CryptoKey, aad: string, blob: string): Promise<Bytes | 
   } catch {
     return null;
   }
+}
+
+/** A fresh post-quantum (ML-KEM-768) key pair, base64url. */
+export function kemPair(): { sk: string; pk: string } {
+  const k = ml_kem768.keygen();
+  return { sk: toB64u(k.secretKey), pk: toB64u(k.publicKey) };
 }
 
 // ---------- the link ----------
@@ -201,6 +208,8 @@ export async function joinWith(
   /** The key pair made for the exchange. The opener keeps it as their first ratchet key (lib/chat-ratchet.ts). */
   ratchetPriv: JsonWebKey;
   ratchetPub: string;
+  /** The opener's first post-quantum (ML-KEM) key pair; its public half travels in the join, locked like the rest. */
+  kem: { sk: string; pk: string };
 }> {
   const id = await inviteIdOf(secret);
   const ik = await inviteKey(secret);
@@ -220,13 +229,15 @@ export async function joinWith(
   );
   const m = await master(shared, secret, roomId, pubA, pubB);
   const keys = await roomKeys(m, roomId);
+  const kem = kemPair();
   return {
     roomId,
-    join: await seal(ik, `join:${id}:${slot}`, enc.encode(JSON.stringify({ pub: pubB, room: roomId, a: pubA, slot }))),
+    join: await seal(ik, `join:${id}:${slot}`, enc.encode(JSON.stringify({ pub: pubB, room: roomId, a: pubA, slot, kem: kem.pk }))),
     master: m,
     authHash: await sha256Hex(keys.token),
     ratchetPriv: await crypto.subtle.exportKey("jwk", pair.privateKey),
     ratchetPub: pubB,
+    kem,
   };
 }
 
@@ -237,14 +248,15 @@ export async function acceptJoin(
   roomId: string,
   join: string,
   slot: number,
-): Promise<{ master: string; theirPub: string } | null> {
+): Promise<{ master: string; theirPub: string; theirKem: string } | null> {
   try {
     if (!priv) return null;
     const id = await inviteIdOf(secret);
     const j = await open(await inviteKey(secret), `join:${id}:${slot}`, join);
     if (!j) return null;
-    const p = JSON.parse(dec.decode(j)) as { pub?: string; room?: string; a?: string; slot?: number };
+    const p = JSON.parse(dec.decode(j)) as { pub?: string; room?: string; a?: string; slot?: number; kem?: string };
     if (typeof p.pub !== "string" || p.room !== roomId || typeof p.a !== "string" || p.slot !== slot) return null;
+    if (typeof p.kem !== "string" || !/^[A-Za-z0-9_-]{1579}$/.test(p.kem)) return null;
     const mine = await crypto.subtle.importKey("jwk", priv, ECDH, true, ["deriveBits"]);
     // The opener says which public key they used for us: it must be this slot's.
     const jwk = await crypto.subtle.exportKey("jwk", mine);
@@ -258,7 +270,7 @@ export async function acceptJoin(
     const pubA = toB64u(await crypto.subtle.exportKey("raw", pubKey));
     if (p.a !== pubA) return null;
     const shared = await crypto.subtle.deriveBits({ name: "ECDH", public: await importPub(p.pub) }, mine, 256);
-    return { master: await master(shared, secret, roomId, pubA, p.pub), theirPub: p.pub };
+    return { master: await master(shared, secret, roomId, pubA, p.pub), theirPub: p.pub, theirKem: p.kem };
   } catch {
     return null;
   }

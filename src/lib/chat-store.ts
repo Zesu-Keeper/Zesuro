@@ -9,6 +9,7 @@
 
 import { bytes, fromB64u, toB64u, type Message, type Role } from "./chat-crypto";
 import type { RatchetState } from "./chat-ratchet";
+import { argon2idAsync } from "@noble/hashes/argon2.js";
 
 const enc = new TextEncoder();
 const dec = new TextDecoder();
@@ -33,8 +34,8 @@ export interface StoredRoom {
   createdAt: number;
   /** The link this room came from (its id, not its secret). */
   via?: string;
-  /** 2 = forward secrecy. Missing: made by an older version, which can't be opened any more. */
-  v?: 2;
+  /** 3 = forward secrecy with the post-quantum layer. Anything else: made by an older version, which can't be opened any more. */
+  v?: 2 | 3;
   /** Kept only until this tab is closed. */
   mem?: boolean;
   /** A delete timer has been on at some point, so missing early messages are expected. */
@@ -50,7 +51,7 @@ export interface StoredItem {
 }
 
 export interface RoomState {
-  v: 2;
+  v: 2 | 3;
   ratchet: RatchetState;
   /** The last server message number dealt with. */
   cursor: number;
@@ -77,11 +78,17 @@ export const STATE_PREFIX = "whenisaid.chatstate.v1.";
 export const LOCK_KEY = "whenisaid.chatlock.v1";
 export const MODE_KEY = "whenisaid.chatmode.v1";
 export const KDF_ITERATIONS = 600_000;
+/** Argon2id costs for the passcode: 64 MiB and 2 passes, a couple of seconds in a browser, slow on guessing hardware. */
+export const ARGON = { m: 65_536, t: 2, p: 1 };
 
 interface LockConfig {
   v: 1;
   salt: string;
+  /** How the key is made from the passcode. Missing means PBKDF2 (older locks). */
+  kdf?: "argon2id" | "pbkdf2";
   iter: number;
+  m?: number;
+  t?: number;
   /** A known text locked with the key: opens only with the right passcode. */
   check: string;
   /** Lock again after this many idle minutes. */
@@ -124,7 +131,13 @@ export function createChatStore(local: KV, session: KV) {
       return null;
     }
   }
-  async function derive(pass: string, salt: string, iter: number): Promise<CryptoKey> {
+  async function derive(pass: string, salt: string, iter: number, cfg?: Pick<LockConfig, "kdf" | "m" | "t">): Promise<CryptoKey> {
+    if (cfg?.kdf === "argon2id") {
+      const raw = await argon2idAsync(enc.encode(pass), fromB64u(salt), { t: cfg.t ?? ARGON.t, m: cfg.m ?? ARGON.m, p: 1, dkLen: 32 });
+      const keyBytes = bytes(32);
+      keyBytes.set(raw);
+      return crypto.subtle.importKey("raw", keyBytes, { name: "AES-GCM" }, false, ["encrypt", "decrypt"]);
+    }
     const base = await crypto.subtle.importKey("raw", enc.encode(pass), "PBKDF2", false, ["deriveKey"]);
     return crypto.subtle.deriveKey(
       { name: "PBKDF2", salt: fromB64u(salt), iterations: iter, hash: "SHA-256" },
@@ -268,7 +281,7 @@ export function createChatStore(local: KV, session: KV) {
     if (!json) return null;
     try {
       const s = JSON.parse(json) as RoomState;
-      return s && s.v === 2 && s.ratchet ? s : null;
+      return s && (s.v === 2 || s.v === 3) && s.ratchet ? s : null;
     } catch {
       return null;
     }
@@ -300,11 +313,16 @@ export function createChatStore(local: KV, session: KV) {
     return out;
   }
 
-  /** Locks everything with a passcode (or changes it). Needs the chats to be unlocked now. */
-  async function setPasscode(pass: string, minutes: number, iter = KDF_ITERATIONS): Promise<boolean> {
+  /**
+   * Locks everything with a passcode (or changes it). Needs the chats to be unlocked now. The key is made with
+   * Argon2id; `cost` lets tests pick cheap settings (a number means PBKDF2 with that many rounds).
+   */
+  async function setPasscode(pass: string, minutes: number, cost: number | { m: number; t: number } = ARGON): Promise<boolean> {
     if (isLocked() || pass.length < 8) return false;
     const salt = toB64u(crypto.getRandomValues(bytes(16)));
-    const next = await derive(pass, salt, iter);
+    const kdfCfg: Pick<LockConfig, "kdf" | "m" | "t" | "iter"> =
+      typeof cost === "number" ? { kdf: "pbkdf2", iter: cost } : { kdf: "argon2id", m: cost.m, t: cost.t, iter: 0 };
+    const next = await derive(pass, salt, kdfCfg.iter, kdfCfg);
     // Read everything first, so a failure part-way leaves what is stored exactly as it was.
     const found: { kv: KV; name: string; plain: string }[] = [];
     for (const { kv, name } of await everyEntry()) {
@@ -315,7 +333,7 @@ export function createChatStore(local: KV, session: KV) {
       found.push({ kv, name, plain });
     }
     for (const f of found) f.kv.setItem(f.name, await encrypt(next, f.name, f.plain));
-    const cfg: LockConfig = { v: 1, salt, iter, check: await encrypt(next, "lockcheck", "zesuro-chat-lock"), minutes };
+    const cfg: LockConfig = { v: 1, salt, ...kdfCfg, check: await encrypt(next, "lockcheck", "zesuro-chat-lock"), minutes };
     local.setItem(LOCK_KEY, JSON.stringify(cfg));
     lock = cfg;
     key = next;
@@ -328,7 +346,7 @@ export function createChatStore(local: KV, session: KV) {
   async function checkPasscode(pass: string): Promise<CryptoKey | null> {
     if (!lock) return null;
     try {
-      const k = await derive(pass, lock.salt, lock.iter);
+      const k = await derive(pass, lock.salt, lock.iter, lock);
       return (await decrypt(k, "lockcheck", lock.check)) === "zesuro-chat-lock" ? k : null;
     } catch {
       return null;
