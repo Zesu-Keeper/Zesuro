@@ -24,7 +24,7 @@ export function middleware(req: NextRequest) {
   return page(req, false);
 }
 
-/** The page response with the content security policy; `chat` serves the chat page for the plain "/" address. */
+/** The page response with the content security policy. `chat` is true for a private chat address. */
 function page(req: NextRequest, chat: boolean) {
   const nonce = btoa(crypto.randomUUID());
   const dev = process.env.NODE_ENV !== "production";
@@ -50,12 +50,8 @@ function page(req: NextRequest, chat: boolean) {
   if (chat) headers.set(CHAT_HEADER, "1");
   headers.set("x-nonce", nonce);
   headers.set("content-security-policy", csp);
-  let res: NextResponse;
-  if (chat && req.nextUrl.pathname === "/") {
-    const url = req.nextUrl.clone();
-    url.pathname = "/chat";
-    res = NextResponse.rewrite(url, { request: { headers } });
-  } else res = NextResponse.next({ request: { headers } });
+  // On a private address "/" is the chat too: app/page.tsx serves it, so the host name is still the real one.
+  const res = NextResponse.next({ request: { headers } });
   res.headers.set("content-security-policy", csp);
   if (chat) {
     // Nothing from a chat address is kept by the browser or indexed.
