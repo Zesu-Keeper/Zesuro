@@ -72,19 +72,19 @@ if (log) {
   if (entries.length < have || (have > 0 && entries[have - 1].entryHash !== tipE())) die("The mirror's record is not a continuation of this snapshot. Stopping: do not start this server until that is understood.");
   const cols = new Set(db.prepare("PRAGMA table_info(entries)").all().map((c) => c.name));
   if (!cols.has("sched_fixed")) db.exec("ALTER TABLE entries ADD COLUMN sched_fixed TEXT");
-  for (const c of ["tl_round INTEGER", "tl_ct TEXT", "tl_hash TEXT", "tl_error TEXT"]) if (!cols.has(c.split(" ")[0])) db.exec(`ALTER TABLE entries ADD COLUMN ${c}`);
+  for (const c of ["tl_round INTEGER", "tl_ct TEXT", "tl_hash TEXT", "tl_error TEXT", "mailbox_root TEXT"]) if (!cols.has(c.split(" ")[0])) db.exec(`ALTER TABLE entries ADD COLUMN ${c}`);
   db.exec("BEGIN IMMEDIATE");
   let prev = tipE(), addedE = 0, addedC = 0;
   // A restored entry has no dates behind its schedule commitment. If the mirror holds its time-lock (a public reveal
   // date), the unlock time follows from the round, so the entry can still open itself when that round comes.
   const roundTime = (r) => (1692803367 + (r - 1) * 3) * 1000; // drand quicknet: round 1 is at genesis, one round every 3 s
   const insE = db.prepare(`INSERT INTO entries (seq, uid, text, commitment, nonce, created_at, mode, reveal_at, deadline_at, prev_hash, entry_hash,
-      reveal_pkg, reveal_public, sched_salt, hash_v, commit_v, title, place_mode, place_lat, place_lng, place_label, secret_commit, sched_fixed, group_id, tl_round, tl_ct, tl_hash)
-    VALUES (?, ?, ?, ?, ?, ?, ?, ?, NULL, ?, ?, NULL, 0, NULL, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`);
+      reveal_pkg, reveal_public, sched_salt, hash_v, commit_v, title, place_mode, place_lat, place_lng, place_label, secret_commit, sched_fixed, group_id, tl_round, tl_ct, tl_hash, mailbox_root)
+    VALUES (?, ?, ?, ?, ?, ?, ?, ?, NULL, ?, ?, NULL, 0, NULL, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`);
   for (const x of entries.slice(have)) {
     if (entryProblem(x) || x.prevHash !== prev || entryHash(prev, x) !== x.entryHash) { db.exec("ROLLBACK"); die(`The mirror's entry ${x?.seq} does not verify. Nothing was added.`); }
     const p = x.placeMode === "public" ? x.place : null;
-    insE.run(x.seq, x.uid, x.text, x.commitment, x.nonce, x.createdAt, x.mode, x.tl ? roundTime(x.tl.round) : null, x.prevHash, x.entryHash, x.hashV, x.commitV ?? 1, x.title, x.placeMode, p?.lat ?? null, p?.lng ?? null, p?.label ?? null, x.secretCommit, x.schedCommit, x.seq, x.tl?.round ?? null, x.tl?.ct ?? null, x.tlHash ?? null);
+    insE.run(x.seq, x.uid, x.text, x.commitment, x.nonce, x.createdAt, x.mode, x.tl ? roundTime(x.tl.round) : null, x.prevHash, x.entryHash, x.hashV, x.commitV ?? 1, x.title, x.placeMode, p?.lat ?? null, p?.lng ?? null, p?.label ?? null, x.secretCommit, x.schedCommit, x.seq, x.tl?.round ?? null, x.tl?.ct ?? null, x.tlHash ?? null, x.mailboxRoot ?? null);
     try { db.prepare("INSERT INTO entries_fts (rowid, body) VALUES (?, ?)").run(x.seq, `${x.title}\n${x.text}`); } catch { /* search index is optional */ }
     prev = x.entryHash;
     addedE++;

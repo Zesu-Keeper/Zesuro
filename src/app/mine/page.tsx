@@ -1,6 +1,7 @@
 "use client";
 
 import Link from "next/link";
+import PrivateReplies from "@/components/PrivateReplies";
 import { useCallback, useEffect, useState } from "react";
 import KeyBackup from "@/components/KeyBackup";
 import RedactedText from "@/components/RedactedText";
@@ -136,6 +137,7 @@ export default function Mine() {
       <p className="lede">
         These are the posts you made on this device. Only you can reveal them. Using Zesuro at a different address? <Link href="/transfer">Move your keys</Link> to it.
       </p>
+      <PrivateReplies createdAt={Object.fromEntries(Object.entries(live).map(([k, v]) => [k, v.createdAt ?? 0]).filter(([, v]) => v))} />
       {err ? <p className="err">{err}</p> : null}
       {msg ? <p className="notice">{msg}</p> : null}
 

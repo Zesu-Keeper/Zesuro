@@ -25,6 +25,8 @@ export interface StoredInvite {
   createdAt: number;
   /** Kept only until this tab is closed. */
   mem?: boolean;
+  /** The link was sent inside a private reply to this post (lib/mailbox.ts): whoever opens it is its author. */
+  reply?: { uid: string; title: string };
 }
 
 export interface StoredRoom {
@@ -40,6 +42,8 @@ export interface StoredRoom {
   mem?: boolean;
   /** A delete timer has been on at some point, so missing early messages are expected. */
   hadTimer?: boolean;
+  /** This chat began with a private reply to a post. "sent": we wrote to its author. "received": we are its author. */
+  reply?: { uid: string; title: string; side: "sent" | "received" };
 }
 
 /** One line of a chat's history, kept here because a message can only be opened once. */
@@ -400,7 +404,8 @@ export function createChatStore(local: KV, session: KV) {
   }
 
   // ---------- keeping chats only for this tab ----------
-  const keepMode = (): "device" | "session" => (local.getItem(MODE_KEY) === "session" ? "session" : "device");
+  // Chats are kept only for the tab unless someone chooses otherwise: there is then nothing on the device to find.
+  const keepMode = (): "device" | "session" => (local.getItem(MODE_KEY) === "device" ? "device" : "session");
   const setKeepMode = (m: "device" | "session") => {
     try {
       local.setItem(MODE_KEY, m);

@@ -427,7 +427,11 @@ function Home({ apexes, tor }: { apexes: string[]; tor: { via: boolean; onion: s
             if (room.deleted || findRoom(room.id)) continue;
             const got = await acceptJoin(inv.secret, inv.privs?.[room.slot] ?? null, room.id, room.join, room.slot);
             if (got) {
-              const mine: StoredRoom = { id: room.id, role: "a", master: got.master, createdAt: room.createdAt, via: inv.id, v: 3, ...(inv.mem ? { mem: true } : {}) };
+              const mine: StoredRoom = {
+                id: room.id, role: "a", master: got.master, createdAt: room.createdAt, via: inv.id, v: 3,
+                ...(inv.mem ? { mem: true } : {}),
+                ...(inv.reply ? { reply: { ...inv.reply, side: "sent" as const } } : {}),
+              };
               // The chat's first secret state is written before the room is listed, so it can never exist without it.
               if (!(await startRoom(mine, { kind: "creator", theirPub: got.theirPub, theirKem: got.theirKem })) || !addRoom(mine)) continue;
               // The key for this chat is no longer needed, and nothing may be able to re-derive it.
@@ -813,8 +817,17 @@ function Join({ secret }: { secret: string }) {
   const hello = useRef<string>("");
   const slot = useRef<number>(0);
   const [keepTab, setKeepTab] = useState(false);
+  // Set by My posts when the author answers a private reply: which post, and keep the chat only for this tab.
+  const [replyTo, setReplyTo] = useState<{ uid: string; title: string } | null>(null);
   useEffect(() => {
-    setKeepTab(chatStore().keepMode() === "session");
+    let r: { uid: string; title: string } | null = null;
+    try {
+      r = JSON.parse(sessionStorage.getItem("zesuro.join.reply") || "null");
+    } catch {
+      r = null;
+    }
+    setReplyTo(r);
+    setKeepTab(chatStore().keepMode() === "session" || !!r);
   }, []);
 
   useEffect(() => {
@@ -854,7 +867,11 @@ function Join({ secret }: { secret: string }) {
       for (let attempt = 0; ; attempt++) {
         const j = await joinWith(secret, hello.current, slot.current);
         // Store the key before using up the link, so a refused write can't strand the chat.
-        const mine: StoredRoom = { id: j.roomId, role: "b", master: j.master, createdAt: Date.now(), via: id, v: 3, ...(keepTab ? { mem: true } : {}) };
+        const mine: StoredRoom = {
+          id: j.roomId, role: "b", master: j.master, createdAt: Date.now(), via: id, v: 3,
+          ...(keepTab ? { mem: true } : {}),
+          ...(replyTo ? { reply: { ...replyTo, side: "received" as const } } : {}),
+        };
         if (
           !(await startRoom(mine, { kind: "opener", priv: j.ratchetPriv, pub: j.ratchetPub, kem: j.kem })) ||
           !addRoom(mine)
@@ -866,6 +883,11 @@ function Join({ secret }: { secret: string }) {
           body: JSON.stringify({ room: j.roomId, join: j.join, auth: j.authHash, slot: slot.current }),
         });
         if (res.ok) {
+          try {
+            sessionStorage.removeItem("zesuro.join.reply");
+          } catch {
+            /* nothing kept */
+          }
           go(`r=${j.roomId}`);
           return;
         }
@@ -1357,7 +1379,22 @@ function Room({ id }: { id: string }) {
       <h1>Private chat</h1>
 
       <div className="card chat-head">
-        {role === "a" ? (
+        {room.reply ? (
+          <p>
+            <span className="badge revealed">{room.reply.side === "sent" ? "Private reply" : "Your post"}</span>{" "}
+            {room.reply.side === "sent" ? (
+              <>
+                This chat came from your private reply to &ldquo;{room.reply.title}&rdquo;. Only that post&apos;s author could
+                open it, so whoever is here wrote that post. You still don&apos;t know who they are.
+              </>
+            ) : (
+              <>
+                You are answering a private reply to your post &ldquo;{room.reply.title}&rdquo;. The other person doesn&apos;t
+                learn who you are unless you tell them. Be careful what you share.
+              </>
+            )}
+          </p>
+        ) : role === "a" ? (
           <p>
             <span className="badge revealed">You made the link</span>{" "}
             {introduced ? (
@@ -1381,7 +1418,7 @@ function Room({ id }: { id: string }) {
             have compared the safety code.
           </p>
         )}
-        {role === "a" && !introduced ? (
+        {role === "a" && !introduced && !room.reply ? (
           <div className="row" style={{ justifyContent: "flex-start", marginTop: 0 }}>
             <button type="button" className="primary" onClick={introduce} disabled={introducing || !loaded || !keys}>
               {introducing ? "Saying hello…" : "The codes match: say hello"}
@@ -1497,7 +1534,7 @@ function Room({ id }: { id: string }) {
         </button>
       </div>
 
-      {role === "a" && !onChat && !inAddOn() ? (
+      {role === "a" && !onChat && !inAddOn() && !room.reply ? (
         <div className="card">
           <p className="lede" style={{ marginBottom: 8 }}>
             <b>Show them a post is yours.</b> Pick one of your posts. Their browser will check it

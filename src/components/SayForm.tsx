@@ -11,6 +11,7 @@ import Stamp from "@/components/Stamp";
 import SafetyCheck from "@/components/SafetyCheck";
 import IdentifyPanel from "@/components/IdentifyPanel";
 import { cleanMarks, hidePhrase } from "@/lib/identify";
+import { makeMailbox, mailboxRootOf } from "@/lib/mailbox";
 import { normText, normTitle, type CommitContent } from "@/lib/commit";
 import { encodeBundle } from "@/lib/release-bundle";
 import { roundForTime, timelockEncrypt } from "@/lib/timelock";
@@ -82,6 +83,9 @@ export default function SayForm({ viaTor = false, onion = null }: { viaTor?: boo
   const [done, setDone] = useState<{ uid: string; createdAt: number; releaseBy?: number } | null>(null);
   // By default a post waits a few hours before it appears, so its time can't be matched to when you were online.
   const [delayed, setDelayed] = useState(true);
+  // Private replies: on by default. Only the real author can ever read them.
+  const [replies, setReplies] = useState(true);
+  const [warnRoot, setWarnRoot] = useState(false);
   const box = useRef<HTMLTextAreaElement>(null);
 
   useEffect(() => {
@@ -169,6 +173,7 @@ export default function SayForm({ viaTor = false, onion = null }: { viaTor?: boo
 
       // The commitment covers exactly what the site will record, so what the author later
       // opens can only ever match this text, this title, this place and this entry id.
+      const mbox = replies ? makeMailbox() : null;
       const content: CommitContent = {
         uid,
         title: normTitle(title),
@@ -214,6 +219,7 @@ export default function SayForm({ viaTor = false, onion = null }: { viaTor?: boo
           timelock,
           revealPublic: mode !== "manual" && showDate,
           delay: delayed ? "hours" : undefined,
+          mailbox: mbox ? mbox.leaves : undefined,
         },
         trap,
       );
@@ -233,7 +239,10 @@ export default function SayForm({ viaTor = false, onion = null }: { viaTor?: boo
         secret,
         commitV: 2,
         ...(pending ? { pendingBy: pending.releaseBy } : {}),
+        ...(mbox ? { mailbox: { root: mailboxRootOf(uid, mbox.leaves), secrets: mbox.secrets } } : {}),
       });
+      // The record must hold exactly the mailbox keys this browser made; anything else means someone swapped them.
+      if (mbox && !pending && data.entry.mailboxRoot !== mailboxRootOf(uid, mbox.leaves)) setWarnRoot(true);
       setDone(pending ? { uid, createdAt: Date.now(), releaseBy: pending.releaseBy } : { uid, createdAt: data.entry.createdAt });
       setTitle("");
       setPlaceMode("none");
@@ -263,6 +272,12 @@ export default function SayForm({ viaTor = false, onion = null }: { viaTor?: boo
   return (
     <main>
       <SafetyCheck viaTor={viaTor} onion={onion} />
+      {warnRoot ? (
+        <div className="warnbox" role="alert">
+          <b>Warning:</b> the record does not hold the private-reply keys this browser made for your post. Someone may have
+          swapped them. Don&apos;t trust private replies to it.
+        </div>
+      ) : null}
       {done ? (
         done.releaseBy ? (
           <div className="notice" role="status">
@@ -593,6 +608,14 @@ export default function SayForm({ viaTor = false, onion = null }: { viaTor?: boo
                   ) : null}
                 </details>
 
+                <label className="opt">
+                  <input type="checkbox" checked={replies} onChange={(e) => setReplies(e.target.checked)} />
+                  <b>Let people reply to this post privately</b>
+                  <small>
+                    A journalist or anyone else can press &quot;Reply privately&quot; on your post. Only you can read the
+                    replies, and nobody, including this site, can tell who you are. You see them under My posts.
+                  </small>
+                </label>
                 <label className="opt">
                   <input type="checkbox" checked={delayed} onChange={(e) => setDelayed(e.target.checked)} />
                   <b>Publish it at a random time in the next few hours (safer)</b>

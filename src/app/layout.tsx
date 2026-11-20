@@ -3,6 +3,7 @@ import { headers } from "next/headers";
 import Link from "next/link";
 import { isChatRequest } from "@/lib/chat-hosts";
 import LeaveQuickly from "@/components/LeaveQuickly";
+import InboxCover from "@/components/InboxCover";
 import "./globals.css";
 
 // Every page is rendered per request so it can carry that request's CSP nonce.
@@ -60,6 +61,7 @@ export default async function RootLayout({ children }: { children: React.ReactNo
           </p>
         </div>
         <LeaveQuickly />
+        <InboxCover />
       </body>
     </html>
   );

@@ -18,6 +18,7 @@ export const TRANSFER_KEYS = [
   "whenisaid.key.v1", // the device key: authorship of everything you posted
   "whenisaid.mine.v1",
   "whenisaid.threads.v1", // informant thread keys
+  "whenisaid.journalist.v1", // a journalist's verified identity key
   "whenisaid.voter.v2",
   "whenisaid.votes.v1",
   "whenisaid.outcomes.v1",

@@ -37,7 +37,7 @@ const state = (marker) => ({ v: 2, ratchet: { v: 2, marker }, cursor: 3, own: []
   ok((await st2.loadRoomState("r2", true)) === null, "and the session chat's state is gone");
   st.dropRoom("r1");
   ok(!L.keys().includes(S.STATE_PREFIX + "r1") && !st.findRoom("r1"), "dropping a chat removes its state too");
-  ok(st.keepMode() === "device", "chats are kept on the device by default");
+  ok(st.keepMode() === "session", "chats are kept only for the tab by default");
   st.setKeepMode("session");
   ok(st.keepMode() === "session" && L.getItem(S.MODE_KEY) === "session", "the choice to keep chats only for the tab is remembered");
 }

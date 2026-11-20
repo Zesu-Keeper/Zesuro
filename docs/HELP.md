@@ -52,6 +52,20 @@ Open Transfer on your old device to make a code and a bundle. Open Transfer on t
 - Flag spam. A flag is a public count that moves a post down the list. Nothing is ever removed because of flags.
 - The Came true page shows revealed posts ranked by how many people say they happened.
 
+## Private replies
+
+### Replying to a post
+
+Under a post that allows it there is a **Reply privately** button. Your reply is locked so that only the real author of that post can read it. Nobody else can, including this site, and the author stays anonymous. If the author answers, you talk in a private chat that appears under Private chat in the same browser.
+
+When you post, private replies are on unless you turn them off. Replies to your posts appear under **My posts**. Each month's replies use their own key, and your browser throws that key away when the month is over, so old replies can't be opened later.
+
+### Is it really a journalist?
+
+Anyone can claim to be a reporter, including the people you wrote about. A journalist can set up a **verified identity**: their newsroom publishes their key on its own website. Their replies then show "Verified: name at newsroom". Replies without that are folded away and marked "Not verified". Treat them with care, and don't share anything that identifies you until you are sure who you are talking to.
+
+Journalists set this up on the [verified journalist page](/journalist).
+
 ## Private chat
 
 ### What it is for

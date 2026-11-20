@@ -16,9 +16,12 @@ const str = (s, max) => typeof s === "string" && s.length <= max;
  * sealed, can't be swapped for another.
  */
 export function entryHash(prev, x) {
-  const body = [x.hashV === 4 ? 4 : 3, x.seq, x.uid, x.createdAt, x.title, x.text, x.commitment, x.nonce, x.mode, x.schedCommit,
+  const v = x.hashV === 5 ? 5 : x.hashV === 4 ? 4 : 3;
+  const body = [v, x.seq, x.uid, x.createdAt, x.title, x.text, x.commitment, x.nonce, x.mode, x.schedCommit,
     x.placeMode === "public" ? [x.place.lat, x.place.lng, x.place.label] : null, x.placeMode === "hidden", x.secretCommit];
-  if (x.hashV === 4) body.push(x.tlHash);
+  if (v >= 4) body.push(v === 5 ? x.tlHash ?? null : x.tlHash);
+  // Version 5 also covers the fingerprint of the post's private-reply mailbox keys.
+  if (v === 5) body.push(x.mailboxRoot ?? null);
   return sha(prev + "\n" + JSON.stringify(body));
 }
 
@@ -31,9 +34,11 @@ export function commentHash(prev, x) {
 export function entryProblem(x) {
   if (!x || typeof x !== "object") return "not an object";
   if (!int(x.seq) || x.seq < 1) return "bad number";
-  if (x.hashV !== 3 && x.hashV !== 4) return `hash version ${x.hashV} is not covered`;
+  if (x.hashV !== 3 && x.hashV !== 4 && x.hashV !== 5) return `hash version ${x.hashV} is not covered`;
+  if (x.hashV === 5 && !HEX64.test(x.mailboxRoot ?? "")) return "bad mailbox fingerprint";
+  if (x.hashV === 5 && x.tlHash !== null && x.tlHash !== undefined && !HEX64.test(x.tlHash)) return "bad time-lock hash";
   if (x.hashV === 3 && (x.tlHash !== undefined || x.tl !== undefined)) return "a version 3 entry has no time-lock";
-  if (x.hashV === 4) {
+  if (x.hashV === 4 || (x.hashV === 5 && x.tlHash)) {
     if (!HEX64.test(x.tlHash ?? "")) return "bad time-lock hash";
     // The ciphertext is optional (a private reveal date keeps it off the public log until the entry is revealed),
     // but if it is there it must be exactly what the chain covers.

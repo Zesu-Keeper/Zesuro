@@ -55,6 +55,6 @@ ok((await sealBundle(items, code)) !== bundle, "each bundle is different");
   p = planImport({ "whenisaid.key.v1": "B" }, incoming);
   ok(p.deviceKeyConflict && p.keep.includes("whenisaid.key.v1"), "a different device key is a conflict, never replaced");
 }
-ok(TRANSFER_KEYS.includes("whenisaid.key.v1") && TRANSFER_KEYS.length === 8 && !TRANSFER_KEYS.some((k) => k.includes("chat")), "the carried keys are the app's, and chats are not among them");
+ok(TRANSFER_KEYS.includes("whenisaid.key.v1") && TRANSFER_KEYS.length === 9 && !TRANSFER_KEYS.some((k) => k.includes("chat")), "the carried keys are the app's, and chats are not among them");
 
 console.log(`All ${n} transfer checks passed`);

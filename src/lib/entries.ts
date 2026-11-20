@@ -1,5 +1,6 @@
 ﻿import { randomBytes } from "node:crypto";
 import { getDb } from "./db";
+import { mailboxRootOf, parseMailboxLeaves, type MailboxLeaf } from "./mailbox";
 import { EntryError } from "./errors";
 import {
   HEX32,
@@ -66,6 +67,7 @@ interface Row {
   tl_round: number | null;
   tl_ct: string | null;
   tl_hash: string | null;
+  mailbox_root: string | null;
   tl_error: string | null;
   hash_v: number;
   commit_v: number;
@@ -152,6 +154,8 @@ export interface PublicEntry {
    * because the round gives the date away.
    */
   timelock: { hash: string; round: number | null } | null;
+  /** Fingerprint of the post's private-reply mailbox keys, or null if it takes no private replies. */
+  mailboxRoot: string | null;
   /** The opened schedule, shown only once nothing private is left in it. */
   schedule: { revealAt: number | null; deadlineAt: number | null; salt: string } | null;
   likes: number;
@@ -197,8 +201,10 @@ function hashEntry(
     schedSalt: string | null;
     /** The schedule commitment itself, when the dates and salt behind it are not held (entries restored from a mirror). */
     schedFixed?: string | null;
-    /** SHA-256 of the time-lock ciphertext (hash v4 only). */
+    /** SHA-256 of the time-lock ciphertext (hash v4 and later). */
     tlHash?: string | null;
+    /** Fingerprint of the post's private-reply mailbox keys (hash v5 only). */
+    mailboxRoot?: string | null;
     title: string;
     placeMode: PlaceMode;
     placeLat: number | null;
@@ -207,6 +213,30 @@ function hashEntry(
     secretCommit: string | null;
   },
 ): string {
+  if (version >= 5) {
+    // Version 5 is version 4 plus the fingerprint of the post's mailbox keys, so they can never be swapped.
+    return sha256Hex(
+      prev +
+        "\n" +
+        JSON.stringify([
+          5,
+          f.seq,
+          f.uid,
+          f.createdAt,
+          f.title,
+          f.text,
+          f.commitment,
+          f.nonce,
+          f.mode,
+          f.schedFixed ?? scheduleCommit(f.revealAt, f.deadlineAt, f.schedSalt ?? ""),
+          f.placeMode === "public" ? [f.placeLat, f.placeLng, f.placeLabel ?? ""] : null,
+          f.placeMode === "hidden",
+          f.secretCommit,
+          f.tlHash ?? null,
+          f.mailboxRoot ?? null,
+        ]),
+    );
+  }
   if (version >= 4) {
     // Version 4 is version 3 plus the hash of the time-lock ciphertext (null if the entry has none).
     return sha256Hex(
@@ -343,6 +373,7 @@ function toPublic(r: Row, now: number): PublicEntry {
     hashVersion: r.hash_v,
     schedCommit: legacy ? null : (r.sched_fixed ?? scheduleCommit(r.reveal_at, r.deadline_at, r.sched_salt ?? "")),
     timelock: r.tl_hash ? { hash: r.tl_hash, round: datePublic || revealed ? r.tl_round : null } : null,
+    mailboxRoot: r.mailbox_root ?? null,
     schedule: canOpen
       ? { revealAt: r.reveal_at, deadlineAt: r.deadline_at, salt: r.sched_salt! }
       : null,
@@ -549,6 +580,8 @@ export interface SealInput {
   commitV?: unknown;
   /** "hours": hold the post and write it into the record at a random time in the next few hours. */
   delay?: unknown;
+  /** Public keys for private replies to this post, one per month (lib/mailbox.ts). Optional. */
+  mailbox?: unknown;
 }
 
 /** Longest time-lock ciphertext accepted (armored text): a 32 KB bundle is about 44 KB. */
@@ -698,9 +731,18 @@ export async function sealEntry(input: SealInput): Promise<PublicEntry | Pending
   const prepared: Prepared = {
     uid, text, commitment, nonce, mode, revealAt, deadlineAt, title, placeMode, publicPlace,
     secretCommit, tl, pkg, revealPublic, secretPkg, secretBlob, whole, dup,
+    mailbox: parseMailbox(input.mailbox, uid),
   };
   if (input.delay === "hours") return queuePending(prepared, now);
   return insertPrepared(prepared, now);
+}
+
+/** Checks a post's mailbox keys. Missing is fine (no private replies); malformed is refused. */
+function parseMailbox(raw: unknown, uid: string): { root: string; leaves: MailboxLeaf[] } | null {
+  if (raw === undefined || raw === null) return null;
+  const leaves = parseMailboxLeaves(raw);
+  if (!leaves) throw new EntryError("The private-reply keys are not valid. Reload the page and try again.");
+  return { root: mailboxRootOf(uid, leaves), leaves };
 }
 
 /** Everything a checked entry needs to be written into the chain, at sealing or later at its release. */
@@ -723,6 +765,8 @@ interface Prepared {
   secretBlob: string | null;
   whole: string;
   dup: string;
+  /** The post's private-reply mailbox: its public keys and their fingerprint (lib/mailbox.ts). */
+  mailbox?: { root: string; leaves: MailboxLeaf[] } | null;
 }
 
 // ---- Delayed release ---------------------------------------------------------------------
@@ -806,7 +850,7 @@ export function isPending(uid: string): boolean {
 function insertPrepared(p: Prepared, now: number): PublicEntry {
   const {
     uid, text, commitment, nonce, mode, revealAt, deadlineAt, title, placeMode, publicPlace,
-    secretCommit, tl, pkg, revealPublic, secretPkg, secretBlob, whole, dup,
+    secretCommit, tl, pkg, revealPublic, secretPkg, secretBlob, whole, dup, mailbox,
   } = p;
   const schedSalt = randomBytes(16).toString("hex");
   const db = getDb();
@@ -819,7 +863,7 @@ function insertPrepared(p: Prepared, now: number): PublicEntry {
     const prev = last?.entry_hash ?? GENESIS;
     // Never let the recorded time run backwards, even if the system clock does.
     const createdAt = Math.max(now, last?.created_at ?? 0);
-    const hashV = tl ? 4 : 3;
+    const hashV = mailbox ? 5 : tl ? 4 : 3;
     const entryHash = hashEntry(prev, hashV, {
       seq,
       uid,
@@ -838,6 +882,7 @@ function insertPrepared(p: Prepared, now: number): PublicEntry {
       placeLabel: publicPlace?.label ?? null,
       secretCommit,
       tlHash: tl?.hash ?? null,
+      mailboxRoot: mailbox?.root ?? null,
     });
     db.prepare(
       `INSERT INTO entries
@@ -875,6 +920,10 @@ function insertPrepared(p: Prepared, now: number): PublicEntry {
       tl?.hash ?? null,
     );
     db.prepare("INSERT INTO entries_fts (rowid, body) VALUES (?, ?)").run(seq, whole);
+    if (mailbox) {
+      db.prepare("UPDATE entries SET mailbox_root = ? WHERE seq = ?").run(mailbox.root, seq);
+      db.prepare("INSERT INTO mailboxes (uid, leaves) VALUES (?, ?)").run(uid, JSON.stringify(mailbox.leaves));
+    }
     db.prepare("UPDATE entries SET dup_hash = ?, group_id = ? WHERE seq = ?").run(
       dup,
       findGroup(seq, whole),
@@ -1235,6 +1284,7 @@ export function verifyChain(): { ok: boolean; count: number; tip: string; broken
       schedSalt: r.sched_salt,
       schedFixed: r.sched_fixed,
       tlHash: r.tl_hash,
+      mailboxRoot: r.mailbox_root,
       title: r.title,
       placeMode: r.place_mode,
       placeLat: r.place_lat,
@@ -1284,6 +1334,7 @@ export function listLog(afterSeq: number, limit: number) {
               : null,
         }
       : {}),
+    ...(r.hash_v >= 5 ? { mailboxRoot: r.mailbox_root } : {}),
     prevHash: r.prev_hash,
     entryHash: r.entry_hash,
   }));

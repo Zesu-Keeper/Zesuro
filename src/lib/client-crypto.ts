@@ -46,6 +46,8 @@ export interface MineEntry {
   commitV?: 1 | 2;
   /** A delayed post: not on the record yet, and due to appear by this time. */
   pendingBy?: number;
+  /** Private replies: the post's monthly mailbox secrets (a month's are thrown away once it is over) and their fingerprint. */
+  mailbox?: { root: string; secrets: { x: string | null; k: string | null }[] };
 }
 
 /** Marks where a redaction sits in the public text. Must match the server. */
@@ -406,6 +408,16 @@ export function addMine(e: MineEntry): void {
     localStorage.setItem(MINE_STORAGE, JSON.stringify(list));
   } catch {
     /* storage unavailable: entry is still sealed on the server */
+  }
+}
+
+/** Replaces one of my entries (for example after its old mailbox keys were thrown away). */
+export function updateMine(uid: string, patch: Partial<MineEntry>): void {
+  try {
+    const list = loadMine().map((x) => (x.uid === uid ? { ...x, ...patch } : x));
+    localStorage.setItem(MINE_STORAGE, JSON.stringify(list));
+  } catch {
+    /* storage unavailable */
   }
 }
 

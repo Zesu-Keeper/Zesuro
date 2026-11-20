@@ -229,6 +229,21 @@ function migrate(d: DatabaseSync): void {
     );
     CREATE INDEX IF NOT EXISTS chat_messages_room ON chat_messages (room_id, id);
   `);
+  // Private replies (lib/mailbox.ts, lib/inbox.ts): a post's monthly mailbox public keys, and the locked replies.
+  if (!hasColumn(d, "mailbox_root")) d.exec("ALTER TABLE entries ADD COLUMN mailbox_root TEXT");
+  d.exec(`
+    CREATE TABLE IF NOT EXISTS mailboxes (
+      uid    TEXT PRIMARY KEY,
+      leaves TEXT NOT NULL
+    ) WITHOUT ROWID;
+    CREATE TABLE IF NOT EXISTS mailbox_messages (
+      id         INTEGER PRIMARY KEY AUTOINCREMENT,
+      entry_uid  TEXT NOT NULL,
+      blob       TEXT NOT NULL,
+      created_at INTEGER NOT NULL
+    );
+    CREATE INDEX IF NOT EXISTS mailbox_messages_at ON mailbox_messages (created_at);
+  `);
   // Posts sealed with a delayed release wait here, unpublished, until their time (lib/entries.ts).
   d.exec(`
     CREATE TABLE IF NOT EXISTS pending_entries (

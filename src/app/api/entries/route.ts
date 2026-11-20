@@ -33,7 +33,7 @@ export async function POST(req: Request) {
     // Entries are permanent, so sealing is limited both per minute and per day.
     if (rateLimited(req, "seal", 10, 60_000) || rateLimited(req, "seal-day", 200, 86_400_000))
       return tooMany();
-    const body = await readJson(req, 100_000);
+    const body = await readJson(req, 140_000); // room for the twelve mailbox public keys (~40 KB)
     requireTicket(body.ticket, body.website);
     const entry = await sealEntry({
       uid: body.uid,
@@ -54,6 +54,7 @@ export async function POST(req: Request) {
       commitV: body.commitV,
       revealPublic: body.revealPublic,
       delay: body.delay,
+      mailbox: body.mailbox,
     });
     // A delayed post is not in the record yet: it is only acknowledged.
     if ("pending" in entry) return NextResponse.json({ pending: entry }, { status: 202 });

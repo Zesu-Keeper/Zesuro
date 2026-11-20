@@ -5,6 +5,7 @@ import EntryCard from "@/components/EntryCard";
 import PlaceMap from "@/components/PlaceMap";
 import Comments from "@/components/Comments";
 import ShareButton from "@/components/ShareButton";
+import ReplyPrivately from "@/components/ReplyPrivately";
 import { listComments } from "@/lib/comments";
 import Link from "next/link";
 import { getEntry, listSimilar } from "@/lib/entries";
@@ -50,6 +51,7 @@ export default async function EntryPage({ params }: { params: Promise<{ uid: str
         <ShareButton uid={e.uid} title={e.title} />
       </p>
       {e.place ? <PlaceMap pin={{ lat: e.place.lat, lng: e.place.lng }} height={260} /> : null}
+      {e.mailboxRoot ? <ReplyPrivately uid={e.uid} root={e.mailboxRoot} title={e.title} /> : null}
 
       {similar.length > 0 ? (
         <section aria-label="Similar entries">
