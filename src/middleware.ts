@@ -1,5 +1,5 @@
 import { NextResponse, type NextRequest } from "next/server";
-import { chatApexes, hostKind, randomChatOrigin } from "@/lib/chat-hosts";
+import { CHAT_HEADER, chatApexes, hostKind, randomChatOrigin } from "@/lib/chat-hosts";
 
 // Content-Security-Policy with a per-request nonce. The author's secret key lives in browser
 // storage, so a script-injection bug would be a key-theft bug; this is the second line of
@@ -45,6 +45,9 @@ function page(req: NextRequest, chat: boolean) {
   ].join("; ");
 
   const headers = new Headers(req.headers);
+  // The marker is set here and only here: a visitor can't claim to be on a private address by sending it.
+  headers.delete(CHAT_HEADER);
+  if (chat) headers.set(CHAT_HEADER, "1");
   headers.set("x-nonce", nonce);
   headers.set("content-security-policy", csp);
   let res: NextResponse;

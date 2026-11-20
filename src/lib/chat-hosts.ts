@@ -31,6 +31,14 @@ export function hostKind(host: string | null | undefined, apexes: string[] = cha
   return "main";
 }
 
+/** The header the middleware sets on a request that came to a private chat address (and strips from every other). */
+export const CHAT_HEADER = "x-zesuro-chat";
+
+/** True for a request to a private chat address: by the middleware's marker, or by the host name. */
+export function isChatRequest(h: { get(name: string): string | null }): boolean {
+  return h.get(CHAT_HEADER) === "1" || hostKind(h.get("host")) === "chat";
+}
+
 const ALPHABET = "abcdefghijklmnopqrstuvwxyz0123456789";
 
 /** A random sub-address label: 24 characters, about 124 bits. */

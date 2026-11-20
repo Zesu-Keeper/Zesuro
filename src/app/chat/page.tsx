@@ -1,13 +1,13 @@
 import type { Metadata } from "next";
 import { headers } from "next/headers";
 import ChatApp from "@/components/ChatApp";
-import { chatApexes, hostKind } from "@/lib/chat-hosts";
+import { chatApexes, isChatRequest } from "@/lib/chat-hosts";
 
 export const dynamic = "force-dynamic";
 
 export async function generateMetadata(): Promise<Metadata> {
   // On a private chat address nothing says what site this is.
-  if (hostKind((await headers()).get("host")) === "chat")
+  if (isChatRequest(await headers()))
     return { title: "Notes", description: "", robots: { index: false, follow: false } };
   return {
     title: "Private chat · Zesuro",
@@ -17,6 +17,6 @@ export async function generateMetadata(): Promise<Metadata> {
 }
 
 export default async function ChatPage() {
-  const onChatHost = hostKind((await headers()).get("host")) === "chat";
+  const onChatHost = isChatRequest(await headers());
   return <ChatApp apexes={onChatHost ? [] : chatApexes()} onChatHost={onChatHost} />;
 }

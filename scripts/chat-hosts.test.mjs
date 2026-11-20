@@ -31,4 +31,6 @@ for (let i = 0; i < 100; i++) doms.add(H.randomChatOrigin(apexes).split(".").sli
 ok(doms.size === 2, "both domains get used");
 ok(H.hostKind(new URL(o).host, apexes) === "chat", "a made origin is recognised as a chat address");
 
+ok(H.isChatRequest(new Headers({ "x-zesuro-chat": "1" })) === true, "the middleware's marker makes it a chat request");
+ok(H.isChatRequest(new Headers({ host: "zesuro.com" })) === false, "the main site is not a chat request");
 console.log(`All ${n} chat hosts checks passed.`);

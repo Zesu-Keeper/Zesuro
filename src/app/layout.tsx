@@ -1,7 +1,7 @@
 import type { Metadata, Viewport } from "next";
 import { headers } from "next/headers";
 import Link from "next/link";
-import { hostKind } from "@/lib/chat-hosts";
+import { isChatRequest } from "@/lib/chat-hosts";
 import "./globals.css";
 
 // Every page is rendered per request so it can carry that request's CSP nonce.
@@ -15,7 +15,7 @@ const siteMetadata: Metadata = {
 
 // On a private chat address nothing says what site this is.
 export async function generateMetadata(): Promise<Metadata> {
-  if (hostKind((await headers()).get("host")) === "chat")
+  if (isChatRequest(await headers()))
     return { title: "Notes", description: "", robots: { index: false, follow: false } };
   return siteMetadata;
 }
@@ -26,7 +26,7 @@ export const viewport: Viewport = {
 };
 
 export default async function RootLayout({ children }: { children: React.ReactNode }) {
-  if (hostKind((await headers()).get("host")) === "chat")
+  if (isChatRequest(await headers()))
     return (
       <html lang="en">
         <body>
