@@ -42,10 +42,10 @@ export interface PubJwk {
 }
 
 // ---------- encoding ----------
-function bytes(n: number): Bytes {
+export function bytes(n: number): Bytes {
   return new Uint8Array(new ArrayBuffer(n));
 }
-function copy(src: ArrayBuffer | Uint8Array): Bytes {
+export function copy(src: ArrayBuffer | Uint8Array): Bytes {
   const s = src instanceof Uint8Array ? src : new Uint8Array(src);
   const out = bytes(s.length);
   out.set(s);
@@ -78,10 +78,10 @@ async function sha256(s: string): Promise<Bytes> {
 export async function sha256Hex(s: string): Promise<string> {
   return toHex(await sha256(s));
 }
-async function hkdf(ikm: Bytes, salt: Bytes, info: string): Promise<Bytes> {
+export async function hkdf(ikm: Bytes, salt: Bytes, info: string, bits = 256): Promise<Bytes> {
   const k = await crypto.subtle.importKey("raw", ikm, "HKDF", false, ["deriveBits"]);
   return copy(
-    await crypto.subtle.deriveBits({ name: "HKDF", hash: "SHA-256", salt, info: enc.encode(info) }, k, 256),
+    await crypto.subtle.deriveBits({ name: "HKDF", hash: "SHA-256", salt, info: enc.encode(info) }, k, bits),
   );
 }
 const aesKey = (raw: Bytes) =>
@@ -193,7 +193,15 @@ export async function joinWith(
   secret: string,
   hello: string,
   slot: number,
-): Promise<{ roomId: string; join: string; master: string; authHash: string }> {
+): Promise<{
+  roomId: string;
+  join: string;
+  master: string;
+  authHash: string;
+  /** The key pair made for the exchange. The opener keeps it as their first ratchet key (lib/chat-ratchet.ts). */
+  ratchetPriv: JsonWebKey;
+  ratchetPub: string;
+}> {
   const id = await inviteIdOf(secret);
   const ik = await inviteKey(secret);
   const h = await open(ik, `hello:${id}`, hello);
@@ -217,6 +225,8 @@ export async function joinWith(
     join: await seal(ik, `join:${id}:${slot}`, enc.encode(JSON.stringify({ pub: pubB, room: roomId, a: pubA, slot }))),
     master: m,
     authHash: await sha256Hex(keys.token),
+    ratchetPriv: await crypto.subtle.exportKey("jwk", pair.privateKey),
+    ratchetPub: pubB,
   };
 }
 
@@ -227,7 +237,7 @@ export async function acceptJoin(
   roomId: string,
   join: string,
   slot: number,
-): Promise<string | null> {
+): Promise<{ master: string; theirPub: string } | null> {
   try {
     if (!priv) return null;
     const id = await inviteIdOf(secret);
@@ -248,7 +258,7 @@ export async function acceptJoin(
     const pubA = toB64u(await crypto.subtle.exportKey("raw", pubKey));
     if (p.a !== pubA) return null;
     const shared = await crypto.subtle.deriveBits({ name: "ECDH", public: await importPub(p.pub) }, mine, 256);
-    return await master(shared, secret, roomId, pubA, p.pub);
+    return { master: await master(shared, secret, roomId, pubA, p.pub), theirPub: p.pub };
   } catch {
     return null;
   }
@@ -297,10 +307,12 @@ export type Body =
   | { kind: "text"; text: string }
   /** The key and salt of one public entry, and a signature made with that key for this chat. */
   | { kind: "proof"; uid: string; pub: string; salt: string; sig: string }
-  | { kind: "timer"; ttl: number };
+  | { kind: "timer"; ttl: number }
+  /** Sent once by whoever made the link, so the other side can reply straight away. Never shown. */
+  | { kind: "hello" };
 
 export type Message = Body & {
-  v: 1;
+  v: 1 | 2;
   from: Role;
   /** This sender's running number, starting at 0. */
   n: number;
@@ -321,14 +333,35 @@ export async function encryptMessage(
   n: number,
   body: Body,
 ): Promise<string> {
+  return seal(from === "a" ? keys.a2b : keys.b2a, `msg:${roomId}`, packMessage(from, n, body, 1));
+}
+
+/** The message as JSON, padded to one of a few fixed sizes so its length says little. */
+export function packMessage(from: Role, n: number, body: Body, version: 1 | 2): Bytes {
   // The clock is rounded to the minute: exact times would show a device's clock error.
-  const json = enc.encode(JSON.stringify({ v: 1, from, n, t: Math.floor(Date.now() / 60_000) * 60_000, ...body }));
+  const json = enc.encode(JSON.stringify({ v: version, from, n, t: Math.floor(Date.now() / 60_000) * 60_000, ...body }));
   const size = SIZES.find((s) => s >= json.length + 4);
   if (!size) throw new Error("That message is too long");
   const padded = bytes(size);
   new DataView(padded.buffer).setUint32(0, json.length);
   padded.set(json, 4);
-  return seal(from === "a" ? keys.a2b : keys.b2a, `msg:${roomId}`, padded);
+  return padded;
+}
+
+/** Null unless the padded bytes hold one well-formed message from `from`. */
+export function unpackMessage(padded: Bytes, from: Role, version: 1 | 2): Message | null {
+  try {
+    const len = new DataView(padded.buffer).getUint32(0);
+    if (len > padded.length - 4) return null;
+    const m = JSON.parse(dec.decode(padded.slice(4, 4 + len))) as Record<string, unknown>;
+    if (m.v !== version || m.from !== from) return null;
+    if (!Number.isSafeInteger(m.n) || (m.n as number) < 0 || (m.n as number) > 1_000_000_000) return null;
+    if (typeof m.t !== "number" || !Number.isFinite(m.t)) return null;
+    if (!validBody(m)) return null;
+    return m as unknown as Message;
+  } catch {
+    return null;
+  }
 }
 
 /** Accepts only well-formed messages: the other person holds a key too and could send junk. */
@@ -347,6 +380,8 @@ function validBody(m: Record<string, unknown>): boolean {
       );
     case "timer":
       return typeof m.ttl === "number" && TIMER_CHOICES.includes(m.ttl);
+    case "hello":
+      return true;
     default:
       return false;
   }
@@ -357,19 +392,8 @@ export async function decryptMessage(keys: RoomKeys, roomId: string, blob: strin
   for (const from of ["a", "b"] as const) {
     const padded = await open(from === "a" ? keys.a2b : keys.b2a, `msg:${roomId}`, blob);
     if (!padded) continue;
-    try {
-      const len = new DataView(padded.buffer).getUint32(0);
-      if (len > padded.length - 4) return null;
-      const m = JSON.parse(dec.decode(padded.slice(4, 4 + len))) as Record<string, unknown>;
-      // The key that opened it says who sent it; the message must agree.
-      if (m.v !== 1 || m.from !== from) return null;
-      if (!Number.isSafeInteger(m.n) || (m.n as number) < 0 || (m.n as number) > 1_000_000_000) return null;
-      if (typeof m.t !== "number" || !Number.isFinite(m.t)) return null;
-      if (!validBody(m)) return null;
-      return m as unknown as Message;
-    } catch {
-      return null;
-    }
+    // The key that opened it says who sent it; the message must agree.
+    return unpackMessage(padded, from, 1);
   }
   return null;
 }

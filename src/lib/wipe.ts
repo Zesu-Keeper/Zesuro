@@ -2,17 +2,20 @@
 //   "chats": the private chats (their keys and any links not yet used), plus cached copies of the site.
 //   "all":   everything Zesuro saved here, including the keys to your own posts.
 
+import { chatStore } from "./chat-store";
+
 export type WipeScope = "chats" | "all";
 
 export async function wipeBrowser(scope: WipeScope): Promise<void> {
   try {
     if (scope === "all") localStorage.clear();
-    else localStorage.removeItem("whenisaid.chats.v1");
+    else chatStore().wipeChats();
   } catch {
     /* storage blocked: nothing was kept */
   }
   try {
     sessionStorage.clear();
+    if (scope === "all") chatStore().reload();
   } catch {
     /* nothing to clear */
   }

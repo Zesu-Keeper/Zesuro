@@ -17,7 +17,6 @@
 export const TRANSFER_KEYS = [
   "whenisaid.key.v1", // the device key: authorship of everything you posted
   "whenisaid.mine.v1",
-  "whenisaid.chats.v1", // private chat keys
   "whenisaid.threads.v1", // informant thread keys
   "whenisaid.voter.v2",
   "whenisaid.votes.v1",

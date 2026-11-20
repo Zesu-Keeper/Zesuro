@@ -7,7 +7,7 @@ let n = 0;
 const ok = (c, m) => { assert.ok(c, m); n++; };
 const rejects = async (p, re, m) => { await assert.rejects(p, re, m); n++; };
 
-const items = { "whenisaid.key.v1": '{"d":"secret"}', "whenisaid.chats.v1": '{"rooms":[1,2,3]}', "whenisaid.voter.v2": "abc", "unrelated.key": "must not travel" };
+const items = { "whenisaid.key.v1": '{"d":"secret"}', "whenisaid.mine.v1": '{"rooms":[1,2,3]}', "whenisaid.voter.v2": "abc", "unrelated.key": "must not travel" };
 const code = makeCode();
 ok(/^([A-Z2-7]{4}-){5}[A-Z2-7]{4}$/.test(code), "code looks like six groups of four");
 ok(normaliseCode(code.toLowerCase().replace(/-/g, " ")) === code.replace(/-/g, ""), "a code is accepted however it is typed");
@@ -17,7 +17,7 @@ ok(new Set(Array.from({ length: 50 }, makeCode)).size === 50, "codes are not rep
 const bundle = await sealBundle(items, code);
 ok(bundle.startsWith("ZT1.") && !bundle.includes("secret") && !bundle.includes("rooms"), "the bundle does not show its contents");
 const back = await openBundle(bundle, code);
-ok(back["whenisaid.key.v1"] === items["whenisaid.key.v1"] && back["whenisaid.chats.v1"] === items["whenisaid.chats.v1"], "opens with the right code");
+ok(back["whenisaid.key.v1"] === items["whenisaid.key.v1"] && back["whenisaid.mine.v1"] === items["whenisaid.mine.v1"], "opens with the right code");
 ok(!("unrelated.key" in back), "only Zesuro's own storage keys travel");
 ok((await openBundle(`  ${bundle}\n`, code.toLowerCase()))["whenisaid.voter.v2"] === "abc", "whitespace and case do not matter");
 
@@ -43,18 +43,18 @@ ok((await sealBundle(items, code)) !== bundle, "each bundle is different");
 
 // Large bundles (several hundred KB) round-trip
 {
-  const big = { "whenisaid.chats.v1": "x".repeat(900_000) };
-  ok((await openBundle(await sealBundle(big, code), code))["whenisaid.chats.v1"].length === 900_000, "a large bundle round-trips");
+  const big = { "whenisaid.mine.v1": "x".repeat(900_000) };
+  ok((await openBundle(await sealBundle(big, code), code))["whenisaid.mine.v1"].length === 900_000, "a large bundle round-trips");
 }
 
 // Import plan never overwrites
 {
-  const incoming = { "whenisaid.key.v1": "A", "whenisaid.chats.v1": "B", "whenisaid.voter.v2": "C" };
-  let p = planImport({ "whenisaid.key.v1": null, "whenisaid.chats.v1": "B", "whenisaid.voter.v2": "other" }, incoming);
-  ok(p.add.join() === "whenisaid.key.v1" && p.same.join() === "whenisaid.chats.v1" && p.keep.join() === "whenisaid.voter.v2" && !p.deviceKeyConflict, "add, same and keep are told apart");
+  const incoming = { "whenisaid.key.v1": "A", "whenisaid.mine.v1": "B", "whenisaid.voter.v2": "C" };
+  let p = planImport({ "whenisaid.key.v1": null, "whenisaid.mine.v1": "B", "whenisaid.voter.v2": "other" }, incoming);
+  ok(p.add.join() === "whenisaid.key.v1" && p.same.join() === "whenisaid.mine.v1" && p.keep.join() === "whenisaid.voter.v2" && !p.deviceKeyConflict, "add, same and keep are told apart");
   p = planImport({ "whenisaid.key.v1": "B" }, incoming);
   ok(p.deviceKeyConflict && p.keep.includes("whenisaid.key.v1"), "a different device key is a conflict, never replaced");
 }
-ok(TRANSFER_KEYS.includes("whenisaid.key.v1") && TRANSFER_KEYS.length === 9, "the list of carried keys is the app's");
+ok(TRANSFER_KEYS.includes("whenisaid.key.v1") && TRANSFER_KEYS.length === 8 && !TRANSFER_KEYS.some((k) => k.includes("chat")), "the carried keys are the app's, and chats are not among them");
 
 console.log(`All ${n} transfer checks passed`);

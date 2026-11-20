@@ -80,7 +80,7 @@ export default function Transfer() {
     <div>
       <h1>Move your keys</h1>
       <p className="lede">
-        Your keys are kept in this browser, so they only work at this website address. To use Zesuro on another device or at another address, carry your keys across here. Nothing is sent to any server.{" "}
+        Your keys are kept in this browser, so they only work at this website address. To use Zesuro on another device or at another address, carry your post keys across here. Nothing is sent to any server. Private chats can't be moved: each one stays on the device that started it, which is what keeps it safe.{" "}
         <a href="/help#using-another-device">More help</a>
       </p>
 

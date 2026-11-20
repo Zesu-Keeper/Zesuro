@@ -1,12 +1,10 @@
 "use client";
 
-import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState, useSyncExternalStore } from "react";
 import Link from "next/link";
 import Stamp from "./Stamp";
 import {
   acceptJoin,
-  decryptMessage,
-  encryptMessage,
   inviteFragment,
   inviteIdOf,
   joinWith,
@@ -24,12 +22,12 @@ import {
   MAX_USES,
   TIMER_CHOICES,
   type Body,
-  type Message,
   type RoomKeys,
 } from "@/lib/chat-crypto";
 import {
   addInvite,
   addRoom,
+  chatStore,
   dropInvite,
   dropRoom,
   eraseInviteKey,
@@ -48,6 +46,7 @@ import {
   loadMine,
   type MineEntry,
 } from "@/lib/client-crypto";
+import { ensureHello, loadSnapshot, pollRoom, sendMessage, startRoom, type Item } from "@/lib/chat-session";
 import type { CommitContent } from "@/lib/commit";
 import { postWithTicket, warmTicket } from "@/lib/ticket-client";
 import { wipeBrowser } from "@/lib/wipe";
@@ -95,8 +94,17 @@ const TIMERS: [number, string][] = [
 ];
 const timerLabel = (ttl: number) => TIMERS.find(([v]) => v === ttl)?.[1] ?? "Keep messages";
 
+function useLocked(): boolean {
+  return useSyncExternalStore(
+    (f) => chatStore().subscribe(f),
+    () => chatStore().isLocked(),
+    () => false,
+  );
+}
+
 export default function ChatApp() {
   const [route, setRoute] = useState<Route | null>(null);
+  const locked = useLocked();
   useEffect(() => {
     const on = () => setRoute(readRoute());
     on();
@@ -104,12 +112,201 @@ export default function ChatApp() {
     return () => window.removeEventListener("hashchange", on);
   }, []);
 
+  // With a passcode set, the chats lock again after a while without use.
+  useEffect(() => {
+    if (locked) return;
+    let last = Date.now();
+    const touch = () => (last = Date.now());
+    const events = ["pointerdown", "keydown", "touchstart", "scroll", "mousemove"] as const;
+    for (const e of events) window.addEventListener(e, touch, { passive: true });
+    const timer = setInterval(() => {
+      const mins = chatStore().autoLockMinutes();
+      if (mins > 0 && Date.now() - last >= mins * 60_000) chatStore().lockNow();
+    }, 5_000);
+    return () => {
+      clearInterval(timer);
+      for (const e of events) window.removeEventListener(e, touch);
+    };
+  }, [locked]);
+
   if (!route) return <p className="empty">Loading…</p>;
   if (typeof crypto === "undefined" || !crypto.subtle)
     return <p className="err">This browser can&apos;t do the encryption private chats need.</p>;
+  if (locked) return <LockScreen />;
   if (route.view === "join") return <Join secret={route.secret} />;
   if (route.view === "room") return <Room key={route.id} id={route.id} />;
   return <Home />;
+}
+
+// ------------------------------------------------------------------------------------------
+// Lock screen
+// ------------------------------------------------------------------------------------------
+
+function LockScreen() {
+  const [pass, setPass] = useState("");
+  const [busy, setBusy] = useState(false);
+  const [err, setErr] = useState<string | null>(null);
+
+  async function open(e: React.FormEvent) {
+    e.preventDefault();
+    setBusy(true);
+    setErr(null);
+    try {
+      if (!(await chatStore().unlock(pass))) setErr("That passcode isn't right.");
+      else setPass("");
+    } finally {
+      setBusy(false);
+    }
+  }
+
+  async function forgot() {
+    if (
+      !window.confirm(
+        "Erase all your chats?\n\nWithout the passcode, the chats on this device can't be opened. This erases them and removes the passcode, so you can start fresh. It can't be undone.",
+      )
+    )
+      return;
+    await wipeBrowser("chats");
+    chatStore().eraseEverything();
+  }
+
+  return (
+    <main>
+      <h1>Private chat</h1>
+      <form className="card" onSubmit={open}>
+        <p className="lede">Your chats are locked. Enter your passcode to open them.</p>
+        <label className="lbl" htmlFor="chat-pass">Passcode</label>
+        <input
+          id="chat-pass"
+          type="password"
+          autoComplete="off"
+          value={pass}
+          onChange={(e) => setPass(e.target.value)}
+          autoFocus
+        />
+        {err ? <p className="err">{err}</p> : null}
+        <div className="row" style={{ justifyContent: "flex-start" }}>
+          <button type="submit" className="primary" disabled={busy || !pass}>
+            {busy ? "Unlocking…" : "Unlock"}
+          </button>
+        </div>
+        <p className="count">
+          Forgot it? There is no way to recover the chats without it.{" "}
+          <button type="button" className="link" onClick={forgot}>Erase my chats and start again</button>
+        </p>
+      </form>
+    </main>
+  );
+}
+
+// ------------------------------------------------------------------------------------------
+// Passcode and auto-lock settings
+// ------------------------------------------------------------------------------------------
+
+function Security() {
+  const [on, setOn] = useState(false);
+  const [mins, setMins] = useState(5);
+  const [pass, setPass] = useState("");
+  const [again, setAgain] = useState("");
+  const [msg, setMsg] = useState<string | null>(null);
+  const [err, setErr] = useState<string | null>(null);
+  const [busy, setBusy] = useState(false);
+  useEffect(() => {
+    const st = chatStore();
+    setOn(st.lockConfigured());
+    if (st.autoLockMinutes()) setMins(st.autoLockMinutes());
+  }, []);
+
+  async function save() {
+    setErr(null);
+    setMsg(null);
+    if (pass.length < 8) return setErr("Use at least 8 characters.");
+    if (pass !== again) return setErr("The two passcodes don't match.");
+    setBusy(true);
+    try {
+      if (!(await chatStore().setPasscode(pass, mins))) throw new Error("Could not set the passcode.");
+      setOn(true);
+      setPass("");
+      setAgain("");
+      setMsg("Done. Your chats are now locked with this passcode.");
+    } catch (e) {
+      setErr(errText(e, "Could not set the passcode."));
+    } finally {
+      setBusy(false);
+    }
+  }
+
+  async function remove() {
+    setErr(null);
+    setMsg(null);
+    const typed = window.prompt("Enter your passcode to remove it:");
+    if (!typed) return;
+    setBusy(true);
+    try {
+      if (!(await chatStore().removePasscode(typed))) return setErr("That passcode isn't right.");
+      setOn(false);
+      setMsg("The passcode was removed. Your chats are stored on this device without a lock.");
+    } finally {
+      setBusy(false);
+    }
+  }
+
+  return (
+    <details>
+      <summary>Lock my chats with a passcode</summary>
+      <p className="count">
+        With a passcode, everything chat-related on this device (chat keys, links and message history) is
+        scrambled with a key made from it. Nobody who picks up the device can read the chats without it.
+        The chats lock themselves after a few quiet minutes. If you forget the passcode, nobody can open
+        them, including us.
+      </p>
+      {on ? (
+        <>
+          <div className="row" style={{ justifyContent: "flex-start" }}>
+            <button type="button" className="primary" onClick={() => chatStore().lockNow()}>Lock now</button>
+            <label className="count">
+              Lock after{" "}
+              <select
+                value={mins}
+                onChange={(e) => {
+                  setMins(Number(e.target.value));
+                  chatStore().setAutoLockMinutes(Number(e.target.value));
+                }}
+                aria-label="Lock after"
+              >
+                {[1, 2, 5, 15, 30].map((m) => (
+                  <option key={m} value={m}>{m} {m === 1 ? "minute" : "minutes"}</option>
+                ))}
+              </select>{" "}
+              without use
+            </label>
+          </div>
+          <p className="count">To change the passcode, remove it and set a new one.</p>
+          <button type="button" className="link" onClick={remove} disabled={busy}>Remove the passcode</button>
+        </>
+      ) : (
+        <>
+          <label className="lbl" htmlFor="new-pass">New passcode (at least 8 characters)</label>
+          <input id="new-pass" type="password" autoComplete="new-password" value={pass} onChange={(e) => setPass(e.target.value)} />
+          <label className="lbl" htmlFor="new-pass2">Type it again</label>
+          <input id="new-pass2" type="password" autoComplete="new-password" value={again} onChange={(e) => setAgain(e.target.value)} />
+          <label className="lbl" htmlFor="lock-mins">Lock after</label>
+          <select id="lock-mins" value={mins} onChange={(e) => setMins(Number(e.target.value))}>
+            {[1, 2, 5, 15, 30].map((m) => (
+              <option key={m} value={m}>{m} {m === 1 ? "minute" : "minutes"} without use</option>
+            ))}
+          </select>
+          <div className="row" style={{ justifyContent: "flex-start" }}>
+            <button type="button" className="primary" onClick={save} disabled={busy || !pass}>
+              {busy ? "Locking…" : "Lock my chats"}
+            </button>
+          </div>
+        </>
+      )}
+      {err ? <p className="err">{err}</p> : null}
+      {msg ? <p className="notice">{msg}</p> : null}
+    </details>
+  );
 }
 
 // ------------------------------------------------------------------------------------------
@@ -128,6 +325,7 @@ function Home() {
   const [fresh, setFresh] = useState<string | null>(null);
   const [copied, setCopied] = useState<string | null>(null);
   const [trap, setTrap] = useState("");
+  const [keepTab, setKeepTab] = useState(false);
 
   const reload = useCallback(() => {
     const s = loadChats();
@@ -138,6 +336,7 @@ function Home() {
   useEffect(() => {
     reload();
     warmTicket();
+    setKeepTab(chatStore().keepMode() === "session");
   }, [reload]);
 
   // A chat the other person ended: its key is deleted from this browser as soon as we notice.
@@ -195,11 +394,15 @@ function Home() {
           let refused = 0;
           for (const room of allowed) {
             if (room.deleted || findRoom(room.id)) continue;
-            const master = await acceptJoin(inv.secret, inv.privs?.[room.slot] ?? null, room.id, room.join, room.slot);
-            if (master) {
-              addRoom({ id: room.id, role: "a", master, createdAt: room.createdAt, via: inv.id });
+            const got = await acceptJoin(inv.secret, inv.privs?.[room.slot] ?? null, room.id, room.join, room.slot);
+            if (got) {
+              const mine: StoredRoom = { id: room.id, role: "a", master: got.master, createdAt: room.createdAt, via: inv.id, v: 2, ...(inv.mem ? { mem: true } : {}) };
+              // The chat's first secret state is written before the room is listed, so it can never exist without it.
+              if (!(await startRoom(mine, { kind: "creator", theirPub: got.theirPub })) || !addRoom(mine)) continue;
               // The key for this chat is no longer needed, and nothing may be able to re-derive it.
               eraseInviteKey(inv.id, room.slot);
+              // Say a first hello now if we can, so the other person can reply straight away.
+              roomKeys(got.master, room.id).then((k) => ensureHello(mine, k)).catch(() => {});
             } else refused++;
           }
           if (stop) return;
@@ -248,6 +451,7 @@ function Home() {
         privs: inv.privs,
         maxUses,
         createdAt: Date.now(),
+        ...(keepTab ? { mem: true } : {}),
       });
       if (!ok) throw new Error("This browser is not letting the site store the chat key. Private windows and blocked storage won't work.");
       setFresh(inv.id);
@@ -331,8 +535,9 @@ function Home() {
       <h1>Private chat</h1>
       <p className="lede">
         Chat privately with one person. Your messages are scrambled on your device before they are
-        sent, so this site can&apos;t read them. To start, make a link and send it to the person you
-        want to talk to.
+        sent, so this site can&apos;t read them. Every message gets its own key, and the key is
+        erased as soon as it has been used, so even a stolen device or key can&apos;t open messages
+        that were already sent. To start, make a link and send it to the person you want to talk to.
       </p>
 
       <div className="card">
@@ -379,6 +584,21 @@ function Home() {
           value={trap}
           onChange={(e) => setTrap(e.target.value)}
         />
+        <label className="opt">
+          <input
+            type="checkbox"
+            checked={keepTab}
+            onChange={(e) => {
+              setKeepTab(e.target.checked);
+              chatStore().setKeepMode(e.target.checked ? "session" : "device");
+            }}
+          />
+          <b>Only keep this chat until I close this tab</b>
+          <small>
+            Nothing is saved on this device. When you close the tab the chat is gone for you, and you
+            can&apos;t come back to it. Keep this page open until the other person has joined.
+          </small>
+        </label>
         <div className="row" style={{ justifyContent: "flex-start" }}>
           <button type="button" className="primary" onClick={create} disabled={busy}>
             {busy ? "Making the link…" : "Make a chat link"}
@@ -451,9 +671,11 @@ function Home() {
       ))}
 
       <p className="count">
-        A chat only opens in the browser that started or joined it. To use your chats on another
-        device, use <Link href="/transfer">Move your keys</Link>, which locks them with a separate code.
+        A chat only opens in the browser that started or joined it, and can&apos;t be moved to
+        another device. That is what keeps it safe.
       </p>
+
+      <Security />
 
       <details>
         <summary>Erase chats from this browser</summary>
@@ -490,6 +712,8 @@ function Home() {
         <summary>What this does and doesn&apos;t protect</summary>
         <ul className="chat-notes">
           <li>This site can&apos;t read your messages. It also can&apos;t tell which public posts a chat is about, unless you choose to prove one.</li>
+          <li>Each message is locked with its own key, which is erased after it is used. If someone steals your device or a key later, they can&apos;t open messages that were already sent. A message you have already read stays on this device, so end the chat or use the delete timer to remove it.</li>
+          <li>A chat lives only on the device that started it. It can&apos;t be copied to another device, because that would break the key swapping that keeps it safe.</li>
           <li>The site can see the internet address your browser connects from, but it doesn&apos;t keep a record of it. Use Tor Browser to hide that too.</li>
           <li>Anyone who can use your unlocked phone or computer can read your chats. Use the delete timer or &quot;End chat and delete keys&quot; if that worries you.</li>
           <li>Deleting removes the messages from this site. It can&apos;t remove a copy the other person saved or took a photo of. Scrambled copies can stay in the site&apos;s backups for up to 14 days.</li>
@@ -512,6 +736,10 @@ function Join({ secret }: { secret: string }) {
   const [err, setErr] = useState<string | null>(null);
   const hello = useRef<string>("");
   const slot = useRef<number>(0);
+  const [keepTab, setKeepTab] = useState(false);
+  useEffect(() => {
+    setKeepTab(chatStore().keepMode() === "session");
+  }, []);
 
   useEffect(() => {
     let off = false;
@@ -550,7 +778,11 @@ function Join({ secret }: { secret: string }) {
       for (let attempt = 0; ; attempt++) {
         const j = await joinWith(secret, hello.current, slot.current);
         // Store the key before using up the link, so a refused write can't strand the chat.
-        if (!addRoom({ id: j.roomId, role: "b", master: j.master, createdAt: Date.now(), via: id }))
+        const mine: StoredRoom = { id: j.roomId, role: "b", master: j.master, createdAt: Date.now(), via: id, v: 2, ...(keepTab ? { mem: true } : {}) };
+        if (
+          !(await startRoom(mine, { kind: "opener", priv: j.ratchetPriv, pub: j.ratchetPub })) ||
+          !addRoom(mine)
+        )
           throw new Error("This browser is not letting the site store the chat key. Private windows and blocked storage won't work.");
         const res = await fetch(`/api/chat/invites/${id}/join`, {
           method: "POST",
@@ -598,6 +830,18 @@ function Join({ secret }: { secret: string }) {
             <li>You don&apos;t need an account. The other person learns nothing about you except what you type.</li>
             <li>The other person can show you that they wrote a particular public post, without telling you who they are.</li>
           </ul>
+          <label className="opt">
+            <input
+              type="checkbox"
+              checked={keepTab}
+              onChange={(e) => {
+                setKeepTab(e.target.checked);
+                chatStore().setKeepMode(e.target.checked ? "session" : "device");
+              }}
+            />
+            <b>Only keep this chat until I close this tab</b>
+            <small>Nothing is saved on this device. When you close the tab, the chat is gone for you.</small>
+          </label>
           <div className="row" style={{ justifyContent: "flex-start" }}>
             <button type="button" className="primary" onClick={join} disabled={state === "busy"}>
               {state === "busy" ? "Opening…" : "Open the chat"}
@@ -629,11 +873,6 @@ function Join({ secret }: { secret: string }) {
 // Room
 // ------------------------------------------------------------------------------------------
 
-interface Item {
-  id: number;
-  at: number;
-  msg: Message | null;
-}
 type ProofState = { status: "checking" | "ok" | "bad" | "gone"; title?: string; createdAt?: number };
 
 function Room({ id }: { id: string }) {
@@ -641,6 +880,7 @@ function Room({ id }: { id: string }) {
   const [keys, setKeys] = useState<RoomKeys | null>(null);
   const [items, setItems] = useState<Item[]>([]);
   const [loaded, setLoaded] = useState(false);
+  const [canSend, setCanSend] = useState(true);
   const [ttl, setTtl] = useState(0);
   const [gone, setGone] = useState<"deleted" | "missing" | null>(null);
   const [err, setErr] = useState<string | null>(null);
@@ -654,13 +894,12 @@ function Room({ id }: { id: string }) {
   const [mine, setMine] = useState<MineEntry[]>([]);
   const [pick, setPick] = useState("");
 
-  const cursor = useRef(0);
   const polling = useRef(false);
   const checkedProofs = useRef(new Set<number>());
-  const itemsRef = useRef<Item[]>([]);
   const hadTimer = useRef(room?.hadTimer ?? false);
   const bottom = useRef<HTMLDivElement>(null);
   const role = room?.role ?? "b";
+  const legacy = !!room && room.v !== 2;
 
   useEffect(() => {
     if (!room) return;
@@ -675,48 +914,38 @@ function Room({ id }: { id: string }) {
     }
   }, [room]);
 
+  // What is already kept on this device shows straight away, before the site is asked.
+  useEffect(() => {
+    if (!room || legacy) return;
+    let off = false;
+    loadSnapshot(room).then((snap) => {
+      if (off || !snap) return;
+      setItems(snap.items);
+      setCanSend(snap.canSend);
+    });
+    return () => {
+      off = true;
+    };
+  }, [room, legacy]);
+
   // The other person ended the chat: erase this browser's key and what is on screen straight away.
   useEffect(() => {
     if (gone !== "deleted" || !room) return;
     dropRoom(room.id);
-    itemsRef.current = [];
     setItems([]);
     setKeys(null);
   }, [gone, room]);
 
   const poll = useCallback(async () => {
-    if (!keys || !room || polling.current) return;
+    if (!keys || !room || room.v !== 2 || polling.current) return;
     polling.current = true;
     try {
-      for (;;) {
-        const r = await fetch(`/api/chat/rooms/${room.id}?after=${cursor.current}`, {
-          cache: "no-store",
-          headers: { "x-chat-auth": keys.token },
-        });
-        if (r.status === 410) return setGone("deleted");
-        if (r.status === 404) return setGone("missing");
-        if (!r.ok) throw new Error("Could not reach the server");
-        const d = (await r.json()) as { ttl: number; more: boolean; messages: { id: number; blob: string; at: number }[] };
-        setTtl(d.ttl);
-        if (d.messages.length) {
-          const add: Item[] = [];
-          for (const m of d.messages) {
-            const msg = await decryptMessage(keys, room.id, m.blob);
-            add.push({ id: m.id, at: m.at, msg });
-            // Only a timer message from one of the two of you counts: the server's own say-so
-            // must not be able to switch off the "messages are missing" warnings.
-            if (msg?.kind === "timer" && msg.ttl > 0 && !hadTimer.current) {
-              hadTimer.current = true;
-              patchRoom(room.id, { hadTimer: true });
-            }
-          }
-          cursor.current = d.messages[d.messages.length - 1].id;
-          itemsRef.current = [...itemsRef.current, ...add];
-          setItems(itemsRef.current);
-        }
-        setErr(null);
-        if (!d.more) break;
-      }
+      const snap = await pollRoom(room, keys);
+      if (snap.gone) return setGone(snap.gone);
+      setItems(snap.items);
+      setCanSend(snap.canSend);
+      setTtl(snap.ttl);
+      setErr(null);
       setLoaded(true);
     } catch (e) {
       setErr(errText(e, "Could not reach the server"));
@@ -726,40 +955,38 @@ function Room({ id }: { id: string }) {
   }, [keys, room]);
 
   useEffect(() => {
-    if (!keys) return;
+    if (!keys || !room || room.v !== 2) return;
     let stop = false;
     let timer: ReturnType<typeof setTimeout>;
     const loop = async () => {
       await poll();
       if (!stop) timer = setTimeout(loop, POLL_MS);
     };
-    loop();
+    // The one who made the link says a first, invisible hello, so the other person can reply at once.
+    ensureHello(room, keys).catch(() => {}).finally(() => !stop && loop());
     return () => {
       stop = true;
       clearTimeout(timer);
     };
-  }, [keys, poll]);
+  }, [keys, room, poll]);
+
+  // A delete timer has been on at some point, so earlier messages may legitimately be missing.
+  useEffect(() => {
+    if (!room || hadTimer.current) return;
+    if (items.some((i) => i.msg?.kind === "timer" && i.msg.ttl > 0)) {
+      hadTimer.current = true;
+      patchRoom(room.id, { hadTimer: true });
+    }
+  }, [items, room]);
 
   const send = useCallback(
     async (body: Body) => {
       if (!keys || !room) return;
-      const own = itemsRef.current.filter((i) => i.msg?.from === room.role).map((i) => i.msg!.n);
-      const n = Math.max(findRoom(room.id)?.sent ?? 0, own.length ? Math.max(...own) + 1 : 0);
-      const blob = await encryptMessage(keys, room.id, room.role, n, body);
-      // Claim the number first, so a retry after a lost reply can't reuse it.
-      patchRoom(room.id, { sent: n + 1 });
-      const res = await fetch(`/api/chat/rooms/${room.id}`, {
-        method: "POST",
-        headers: { "content-type": "application/json", "x-chat-auth": keys.token },
-        body: JSON.stringify({ blob }),
-      });
-      if (!res.ok) {
-        const d = await res.json().catch(() => ({}));
-        throw new Error(d.error || "Could not send");
-      }
-      await poll();
+      const snap = await sendMessage(room, keys, body);
+      setItems(snap.items);
+      setCanSend(snap.canSend);
     },
-    [keys, room, poll],
+    [keys, room],
   );
 
   const introduced = items.some((i) => i.msg?.from === "a" && i.msg.kind === "id");
@@ -847,10 +1074,6 @@ function Room({ id }: { id: string }) {
         out[it.id] = "This message could not be read. It was not written by either of you, or it was altered.";
         continue;
       }
-      const sentHere = room ? findRoom(room.id)?.sent : undefined;
-      if (room && typeof sentHere === "number" && m.from === room.role && m.n >= sentHere)
-        out[it.id] =
-          "This message was not sent from this browser. If you use this chat on another device, that is expected; if not, someone else holds this chat's key.";
       const want = next[m.from];
       if (want === undefined) {
         if (m.n > 0 && !hadTimer.current) out[it.id] = "Earlier messages from this person are missing.";
@@ -859,7 +1082,7 @@ function Room({ id }: { id: string }) {
       next[m.from] = Math.max(want ?? 0, m.n + 1);
     }
     return out;
-  }, [items, room]);
+  }, [items]);
 
   async function submit() {
     const t = text.replace(/\r\n?/g, "\n").trim();
@@ -916,7 +1139,6 @@ function Room({ id }: { id: string }) {
 
   /** Forget everything this page holds in memory about the chat. */
   function wipeScreen() {
-    itemsRef.current = [];
     setItems([]);
     setKeys(null);
     setText("");
@@ -984,7 +1206,7 @@ function Room({ id }: { id: string }) {
           `    To check it yourself: SHA-256 of "zesuro:commit:v2:" + entry-key + ":" + salt + ":" + SHA-256(content) must equal the entry's public commitment (the entry page shows the content and its hash).`,
         );
       } else if (m.kind === "timer") lines.push(`${head}: set the timer to "${timerLabel(m.ttl)}"`);
-      else lines.push(`${head}: introduced themselves (chat key ${m.pub}, signature ${m.sig})`);
+      else if (m.kind === "id") lines.push(`${head}: introduced themselves (chat key ${m.pub}, signature ${m.sig})`);
       if (flags[it.id]) lines.push(`    WARNING: ${flags[it.id]}`);
     }
     const url = URL.createObjectURL(new Blob([lines.filter((l) => l !== "").join("\n") + "\n"], { type: "text/plain" }));
@@ -1001,9 +1223,26 @@ function Room({ id }: { id: string }) {
         <h1>Private chat</h1>
         <p className="err">This browser doesn&apos;t hold the key to that chat.</p>
         <p className="count">
-          A chat only opens in the browser that started or joined it, unless you moved your keys
-          across with <Link href="/transfer">Move your keys</Link>. <button type="button" className="link" onClick={() => go("")}>Back to your chats</button>
+          A chat only opens in the browser that started or joined it. <button type="button" className="link" onClick={() => go("")}>Back to your chats</button>
         </p>
+      </main>
+    );
+
+  if (legacy)
+    return (
+      <main>
+        <h1>Private chat</h1>
+        <div className="warnbox">
+          <b>This chat can&apos;t be opened any more.</b> It was made with an older kind of encryption
+          that keeps every message readable if a key is ever stolen. Chats now use a stronger kind that
+          erases each message&apos;s key after it is used, and the old ones can&apos;t be upgraded. End it
+          to delete it, then start a new chat.
+        </div>
+        <div className="row" style={{ justifyContent: "flex-start" }}>
+          <button type="button" className="danger" onClick={endChat}>End chat and delete keys</button>
+          <button type="button" onClick={forgetHere}>Delete my key here</button>
+        </div>
+        {err ? <p className="err">{err}</p> : null}
       </main>
     );
 
@@ -1102,6 +1341,7 @@ function Room({ id }: { id: string }) {
           if (!m) return <p className="err chat-note" key={it.id}>{flag}</p>;
           const me = m.from === role;
           const whoLabel = me ? "You" : m.from === "a" ? "They" : "The other person";
+          if (m.kind === "hello") return null;
           if (m.kind === "id")
             return m.from === "a" ? (
               <p className="count chat-note" key={it.id}>
@@ -1163,12 +1403,19 @@ function Room({ id }: { id: string }) {
         onKeyDown={(e) => {
           if (e.key === "Enter" && (e.ctrlKey || e.metaKey)) submit();
         }}
-        placeholder="Write a message"
+        placeholder={canSend ? "Write a message" : "You can reply once the other person has connected"}
         aria-label="Message"
+        disabled={!canSend}
       />
+      {!canSend ? (
+        <p className="count">
+          The chat is ready as soon as the other person&apos;s device connects. Nothing is lost: this
+          happens by itself when they open the chat.
+        </p>
+      ) : null}
       <div className="row">
         <span className="count">Encrypted in this browser before it is sent.</span>
-        <button type="button" className="primary" onClick={submit} disabled={sending || !text.trim() || !keys}>
+        <button type="button" className="primary" onClick={submit} disabled={sending || !text.trim() || !keys || !canSend}>
           {sending ? "Sending…" : "Send"}
         </button>
       </div>

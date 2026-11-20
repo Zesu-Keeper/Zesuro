@@ -44,7 +44,7 @@ The Move your keys page packs everything the browser holds for Zesuro into one b
 
 ### Private chat in detail
 
-Both browsers make their chat keys locally and agree on them through the invite link. The server stores only encrypted, padded messages and hashes of secrets. Ending a chat marks the room as deleted, removes its messages, and leaves a small marker for 30 days so the other side learns it ended. A browser that sees the marker erases its own key. The code is in `src/lib/chat-crypto.ts` and `src/lib/chat.ts`.
+Both browsers make their chat keys locally and agree on them through the invite link (ECDH on P-256, with the link's secret mixed in). From that shared secret each chat runs a Double Ratchet: fresh Diffie-Hellman keys are exchanged as the two people reply, a chain key steps for every message, and each message key is used once and erased. A message can therefore be opened only once, so each device keeps the chat's history locally. A copy of the ratchet state on a second device would break it, so chats cannot be moved between devices. The creator sends an invisible first message so the opener can reply at once. The server stores only encrypted, padded messages and hashes of secrets. Ending a chat marks the room as deleted, removes its messages, and leaves a small marker for 30 days so the other side learns it ended. A browser that sees the marker erases its own key. With a passcode set, the chat index, chat state and history are encrypted on the device with AES-256-GCM under a key from PBKDF2-SHA256 (600,000 rounds); the key lives only in memory and is dropped after the idle time. Session-only chats live in session storage. The code is in `src/lib/chat-crypto.ts`, `chat-ratchet.ts`, `chat-session.ts`, `chat-store.ts` and `chat.ts`.
 
 ## Hosting your own server
 
@@ -260,7 +260,7 @@ Do not fix it by hand. Compare with a mirror, find the first entry that differs,
 - **Anchors** are signed tips of that chain, countersigned by independent mirrors.
 - **Time locks** use the drand quicknet beacon with identity based encryption (the same scheme as the `tle` tool). The implementation is `src/lib/timelock.ts`, built on the audited `@noble` libraries, and it opens files made by the reference implementation.
 - **Root key and delegations** are hybrid Ed25519 and SLH-DSA, so a quantum computer would need to break both. Snapshots are encrypted to a hybrid X25519 and ML-KEM-768 recovery key.
-- **Chat** is end to end encrypted between browsers. There is no forward secrecy.
+- **Chat** is end to end encrypted between browsers with a Double Ratchet, so it has forward secrecy and heals after a brief compromise. The ratchet state and history are kept on the device, optionally under a passcode.
 
 ### Where to read more
 - [Specification](https://github.com/Zesu-Keeper/Zesuro/blob/main/SPEC.md)

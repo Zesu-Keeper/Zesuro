@@ -21,7 +21,7 @@ check("'as many as allowed' makes one key each for 100 uses", (await C.newInvite
 check("a link for 1 use has 1 key", (await C.newInvite(1)).privs.length === 1);
 
 const j = await C.joinWith(inv.secret, inv.hello, 1);
-const mA = await C.acceptJoin(inv.secret, inv.privs[1], j.roomId, j.join, 1);
+const mA = (await C.acceptJoin(inv.secret, inv.privs[1], j.roomId, j.join, 1))?.master;
 check("both sides derive the same master key", mA === j.master && mA.length === 43);
 const kA = await C.roomKeys(mA, j.roomId), kB = await C.roomKeys(j.master, j.roomId);
 check("same token, binding and safety code", kA.token === kB.token && kA.bind === kB.bind && kA.safety === kB.safety);
@@ -35,7 +35,7 @@ try { await C.joinWith(inv.secret, inv.hello, 3); } catch { threw = true; }
 check("a slot beyond the link's uses is refused", threw);
 
 const j2 = await C.joinWith(inv.secret, inv.hello, 2);
-const mA2 = await C.acceptJoin(inv.secret, inv.privs[2], j2.roomId, j2.join, 2);
+const mA2 = (await C.acceptJoin(inv.secret, inv.privs[2], j2.roomId, j2.join, 2))?.master;
 check("a second opener gets a different key", mA2 === j2.master && mA2 !== mA);
 check("join blob can't be moved to another room", await C.acceptJoin(inv.secret, inv.privs[2], j.roomId, j2.join, 2) === null);
 

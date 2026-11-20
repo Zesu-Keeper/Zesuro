@@ -595,7 +595,7 @@ check("a one-time link can't be opened twice", secondRes.status === 410 && (awai
 check("join list needs the creator's secret", (await chatApi("GET", `/api/chat/invites/${once.inv.id}`, null, { "x-chat-owner": "f".repeat(64) })).status === 404);
 const status = (await chatApi("GET", `/api/chat/invites/${once.inv.id}`, null, { "x-chat-owner": once.inv.ownerSecret })).body;
 check("creator sees exactly one joiner, in the first place", status?.uses === 1 && status.rooms.length === 1 && status.rooms[0].id === bj.j.roomId && status.rooms[0].slot === 0, JSON.stringify(status));
-const aMaster = await CC.acceptJoin(once.inv.secret, once.inv.privs[0], status.rooms[0].id, status.rooms[0].join, status.rooms[0].slot);
+const aMaster = (await CC.acceptJoin(once.inv.secret, once.inv.privs[0], status.rooms[0].id, status.rooms[0].join, status.rooms[0].slot))?.master;
 check("creator derives the same key from what the server relays", aMaster === bj.j.master);
 const aKeys = await CC.roomKeys(aMaster, bj.j.roomId);
 const roomUrl = `/api/chat/rooms/${bj.j.roomId}`;
@@ -631,8 +631,8 @@ check("a two-use link opens twice, each in its own room, then closes", mj1.res.s
 check("each opening gets its own creator key", mj1.slot === 0 && mj2.slot === 1);
 {
   const st2 = (await chatApi("GET", `/api/chat/invites/${multi.inv.id}`, null, { "x-chat-owner": multi.inv.ownerSecret })).body;
-  const m0 = await CC.acceptJoin(multi.inv.secret, multi.inv.privs[0], st2.rooms[0].id, st2.rooms[0].join, 0);
-  const m1 = await CC.acceptJoin(multi.inv.secret, multi.inv.privs[1], st2.rooms[1].id, st2.rooms[1].join, 1);
+  const m0 = (await CC.acceptJoin(multi.inv.secret, multi.inv.privs[0], st2.rooms[0].id, st2.rooms[0].join, 0))?.master;
+  const m1 = (await CC.acceptJoin(multi.inv.secret, multi.inv.privs[1], st2.rooms[1].id, st2.rooms[1].join, 1))?.master;
   check("the creator derives each room's own key from its own private key", m0 === mj1.j.master && m1 === mj2.j.master);
   const forgedSlot = await chatApi("POST", `/api/chat/invites/${(await mkInvite(2)).inv.id}/join`, { room: randomUUID(), join: "A".repeat(100), auth: "a".repeat(64), slot: 5 });
   check("a place beyond what the link was made for is refused", forgedSlot.status === 400, JSON.stringify(forgedSlot.body));

@@ -58,13 +58,20 @@ Private chat lets someone talk to another person, for example a source and a rep
 4. Compare the safety code by voice or in person. If the codes match, nobody is in the middle.
 5. Either of you can set messages to delete after a time, or delete the whole chat.
 
+### Extra protection
+
+- **Every message has its own key.** The key is erased as soon as the message has been used. If someone steals your device or a key later, they can't open messages that were already sent. This is called forward secrecy.
+- **Keep a chat only for this tab.** When you start or join a chat you can choose "Only keep this chat until I close this tab". Nothing is saved on the device, and the chat is gone for you when the tab closes.
+- **A passcode.** You can lock your chats with a passcode. Everything chat-related on the device is scrambled with it, and the chats lock again by themselves after a few quiet minutes. If you forget the passcode, nobody can open the chats.
+- **One device only.** A chat stays on the device that started it. It can't be copied to another device, because that would weaken the protection.
+
 ### Ending a chat
 
 Press "End chat and delete keys" inside a chat. Every message is removed from the site, and the key on your device is erased. The other person's key is erased as soon as their browser next checks the chat. After that, nobody can read it again. If you only want to forget the chat on your own device, press "Delete my key here". The other person can still read it. The Private chat page also has an erase button that ends every chat at once.
 
 ### Know the limits
 
-Chat is text only. If a chat's key is stolen later, the messages in that chat can be read, because there is no forward secrecy. The site can see that a chat exists and roughly when messages arrive. If you are in real danger, use Tor Browser and a device you trust.
+Chat is text only. A message you have already read stays on your device until you delete the chat or the timer removes it, so anyone who can use your device while the chats are open can read it. The site can see that a chat exists and roughly when messages arrive. If you are in real danger, use Tor Browser and a device you trust.
 
 ## Is it safe?
 
