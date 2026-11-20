@@ -33,9 +33,7 @@ import {
   dropInvite,
   dropRoom,
   eraseInviteKey,
-  exportAccess,
   findRoom,
-  importAccess,
   loadChats,
   patchRoom,
   type StoredInvite,
@@ -128,7 +126,6 @@ function Home() {
   const [note, setNote] = useState<string | null>(null);
   const [fresh, setFresh] = useState<string | null>(null);
   const [copied, setCopied] = useState<string | null>(null);
-  const [restoreText, setRestoreText] = useState("");
   const [trap, setTrap] = useState("");
 
   const reload = useCallback(() => {
@@ -272,20 +269,6 @@ function Home() {
     reload();
   }
 
-  function restore() {
-    setErr(null);
-    setNote(null);
-    try {
-      const r = importAccess(restoreText);
-      addRoom(r);
-      setRestoreText("");
-      reload();
-      go(`r=${r.id}`);
-    } catch (e) {
-      setErr(errText(e, "Could not read that chat key"));
-    }
-  }
-
   const linkOf = (inv: StoredInvite) => `${location.origin}/chat#${inviteFragment(inv.secret)}`;
 
   return (
@@ -412,25 +395,10 @@ function Home() {
         </div>
       ))}
 
-      <details>
-        <summary>Move a chat from another browser</summary>
-        <p className="count">
-          Paste a chat key (made with &quot;Copy chat key&quot; inside a chat) to open that chat here too.
-        </p>
-        <textarea
-          className="plain"
-          rows={3}
-          value={restoreText}
-          onChange={(e) => setRestoreText(e.target.value)}
-          aria-label="Chat key"
-          spellCheck={false}
-        />
-        <div className="row" style={{ justifyContent: "flex-start" }}>
-          <button type="button" onClick={restore} disabled={!restoreText.trim()}>
-            Add chat
-          </button>
-        </div>
-      </details>
+      <p className="count">
+        A chat only opens in the browser that started or joined it. To use your chats on another
+        device, use <Link href="/transfer">Move your keys</Link>, which locks them with a separate code.
+      </p>
 
       <details>
         <summary>What this does and doesn&apos;t protect</summary>
@@ -596,7 +564,6 @@ function Room({ id }: { id: string }) {
   const [proofs, setProofs] = useState<Record<number, ProofState>>({});
   const [mine, setMine] = useState<MineEntry[]>([]);
   const [pick, setPick] = useState("");
-  const [copied, setCopied] = useState(false);
 
   const cursor = useRef(0);
   const polling = useRef(false);
@@ -894,7 +861,7 @@ function Room({ id }: { id: string }) {
     if (!room) return;
     if (
       !window.confirm(
-        "Delete your key for this chat on this device?\n\nYou will not be able to read it here again (unless you copied the chat key). The other person's side is not changed. To end it for both of you, use \"End chat and delete keys\".",
+        "Delete your key for this chat on this device?\n\nYou will not be able to read it here again. The other person's side is not changed. To end it for both of you, use \"End chat and delete keys\".",
       )
     )
       return;
@@ -945,8 +912,8 @@ function Room({ id }: { id: string }) {
         <h1>Private chat</h1>
         <p className="err">This browser doesn&apos;t hold the key to that chat.</p>
         <p className="count">
-          Chats can only be opened in the browser that started or joined them, unless you move the
-          chat key across. <button type="button" className="link" onClick={() => go("")}>Back to your chats</button>
+          A chat only opens in the browser that started or joined it, unless you moved your keys
+          across with <Link href="/transfer">Move your keys</Link>. <button type="button" className="link" onClick={() => go("")}>Back to your chats</button>
         </p>
       </main>
     );
@@ -1031,19 +998,6 @@ function Room({ id }: { id: string }) {
           </label>
           <span>
             <button type="button" className="link" onClick={saveTranscript}>Save transcript</button>
-            <button
-              type="button"
-              className="link"
-              onClick={async () => {
-                if (await copyText(exportAccess(room), "Copy this chat key")) {
-                  setCopied(true);
-                  setTimeout(() => setCopied(false), 2000);
-                }
-              }}
-              title="A key that opens this chat in another browser. Treat it like a password."
-            >
-              {copied ? "Chat key copied" : "Copy chat key"}
-            </button>
             <button type="button" className="link" onClick={forgetHere} title="Erases only this device's key. The other person can still read the chat.">Delete my key here</button>
             <button type="button" className="link danger" onClick={endChat} title="Removes every message from this site and erases the key on both sides.">End chat and delete keys</button>
           </span>

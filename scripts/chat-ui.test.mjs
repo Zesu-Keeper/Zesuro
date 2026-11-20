@@ -100,18 +100,9 @@ await B.page.goto(link);
 await B.page.waitForURL(/#r=/, { timeout: 10000 });
 check("reporter reopening the used link returns to their chat", true);
 
-// Move the chat to a fresh browser with the chat key.
+// The chat can't be copied out as a key any more: only the roomId remains, for the stranger check below.
 const roomId = B.page.url().split("#r=")[1];
-const access = await B.page.evaluate((id) => { const r = JSON.parse(localStorage.getItem("whenisaid.chats.v1")).rooms.find((x) => x.id === id); return "zesuro-chat:v1:" + btoa(JSON.stringify({ id: r.id, role: r.role, master: r.master, createdAt: r.createdAt })).replace(/\+/g, "-").replace(/\//g, "_").replace(/=+$/, ""); }, roomId);
-await X.page.goto(BASE + "/chat");
-await X.page.getByText("Move a chat from another browser").click();
-await X.page.getByLabel("Chat key").fill(access);
-await X.page.getByRole("button", { name: "Add chat" }).click();
-await X.page.getByText("Hello from the source").waitFor({ timeout: 15000 });
-await X.page.getByLabel("Message", { exact: true }).fill("Sent from the second device");
-await X.page.getByRole("button", { name: "Send" }).click();
-await A.page.getByText("Sent from the second device").waitFor({ timeout: 15000 });
-check("a moved chat continues without integrity warnings", await A.page.locator(".err").count() === 0, await A.page.locator(".err").allInnerTexts().then((t) => t.join("|")));
+check("there is no copy-the-chat-key button", await B.page.getByRole("button", { name: "Copy chat key" }).count() === 0);
 
 const Y = await mk("stranger");
 await Y.page.goto(`${BASE}/chat#r=${roomId}`);

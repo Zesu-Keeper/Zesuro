@@ -1,10 +1,9 @@
 // Browser only. Private chats this browser takes part in. The keys live here and nowhere
 // else: clear this browser's storage and the chats can no longer be read by anyone on it.
 
-import { fromB64u, toB64u, type Role } from "./chat-crypto";
+import type { Role } from "./chat-crypto";
 
 const STORE = "whenisaid.chats.v1";
-const ACCESS_PREFIX = "zesuro-chat:v1:";
 
 /** A link this browser made that can still be opened by someone. */
 export interface StoredInvite {
@@ -82,31 +81,3 @@ export const patchRoom = (id: string, patch: Partial<StoredRoom>) =>
     if (r) Object.assign(r, patch);
   });
 export const findRoom = (id: string) => loadChats().rooms.find((r) => r.id === id) ?? null;
-
-/** Text that carries one chat to another browser or device. Treat it like a password. */
-export function exportAccess(r: StoredRoom): string {
-  return (
-    ACCESS_PREFIX +
-    toB64u(new TextEncoder().encode(JSON.stringify({ id: r.id, role: r.role, master: r.master, createdAt: r.createdAt })))
-  );
-}
-
-export function importAccess(text: string): StoredRoom {
-  const t = text.trim();
-  if (!t.startsWith(ACCESS_PREFIX)) throw new Error("That is not a Zesuro chat key");
-  let p: Partial<StoredRoom>;
-  try {
-    p = JSON.parse(new TextDecoder().decode(fromB64u(t.slice(ACCESS_PREFIX.length)))) as Partial<StoredRoom>;
-  } catch {
-    throw new Error("That chat key is damaged");
-  }
-  if (
-    typeof p.id !== "string" ||
-    !/^[0-9a-f-]{36}$/.test(p.id) ||
-    (p.role !== "a" && p.role !== "b") ||
-    typeof p.master !== "string" ||
-    !/^[A-Za-z0-9_-]{43}$/.test(p.master)
-  )
-    throw new Error("That chat key is incomplete");
-  return { id: p.id, role: p.role, master: p.master, createdAt: Number(p.createdAt) || Date.now() };
-}
