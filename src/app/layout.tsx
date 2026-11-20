@@ -2,6 +2,7 @@ import type { Metadata, Viewport } from "next";
 import { headers } from "next/headers";
 import Link from "next/link";
 import { isChatRequest } from "@/lib/chat-hosts";
+import LeaveQuickly from "@/components/LeaveQuickly";
 import "./globals.css";
 
 // Every page is rendered per request so it can carry that request's CSP nonce.
@@ -31,6 +32,7 @@ export default async function RootLayout({ children }: { children: React.ReactNo
       <html lang="en">
         <body>
           <div className="shell">{children}</div>
+          <LeaveQuickly />
         </body>
       </html>
     );
@@ -57,6 +59,7 @@ export default async function RootLayout({ children }: { children: React.ReactNo
             Say something now and its exact time is recorded. You choose if and when your name is shown. <Link href="/help">Help</Link>
           </p>
         </div>
+        <LeaveQuickly />
       </body>
     </html>
   );

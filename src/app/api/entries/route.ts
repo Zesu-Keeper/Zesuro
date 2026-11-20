@@ -53,7 +53,10 @@ export async function POST(req: Request) {
       timelock: body.timelock,
       commitV: body.commitV,
       revealPublic: body.revealPublic,
+      delay: body.delay,
     });
+    // A delayed post is not in the record yet: it is only acknowledged.
+    if ("pending" in entry) return NextResponse.json({ pending: entry }, { status: 202 });
     return NextResponse.json({ entry }, { status: 201 });
   } catch (e) {
     return jsonError(e);

@@ -229,6 +229,18 @@ function migrate(d: DatabaseSync): void {
     );
     CREATE INDEX IF NOT EXISTS chat_messages_room ON chat_messages (room_id, id);
   `);
+  // Posts sealed with a delayed release wait here, unpublished, until their time (lib/entries.ts).
+  d.exec(`
+    CREATE TABLE IF NOT EXISTS pending_entries (
+      uid        TEXT PRIMARY KEY,
+      commitment TEXT NOT NULL UNIQUE,
+      nonce      TEXT NOT NULL UNIQUE,
+      payload    TEXT NOT NULL,
+      release_at INTEGER NOT NULL,
+      created_at INTEGER NOT NULL
+    ) WITHOUT ROWID;
+    CREATE INDEX IF NOT EXISTS pending_due ON pending_entries (release_at);
+  `);
   const indexed = d.prepare("SELECT COUNT(*) AS n FROM entries_fts").get() as { n: number };
   const total = d.prepare("SELECT COUNT(*) AS n FROM entries").get() as { n: number };
   if (Number(indexed.n) < Number(total.n))

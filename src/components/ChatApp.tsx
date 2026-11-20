@@ -109,7 +109,15 @@ function useLocked(): boolean {
   );
 }
 
-export default function ChatApp({ apexes = [], onChatHost = false }: { apexes?: string[]; onChatHost?: boolean }) {
+export default function ChatApp({
+  apexes = [],
+  onChatHost = false,
+  tor = null,
+}: {
+  apexes?: string[];
+  onChatHost?: boolean;
+  tor?: { via: boolean; onion: string | null } | null;
+}) {
   const [route, setRoute] = useState<Route | null>(null);
   const locked = useLocked();
   useEffect(() => {
@@ -146,7 +154,7 @@ export default function ChatApp({ apexes = [], onChatHost = false }: { apexes?: 
   ) : route.view === "room" ? (
     <Room key={route.id} id={route.id} />
   ) : (
-    <Home apexes={apexes} />
+    <Home apexes={apexes} tor={tor} />
   );
   return <OnChatHost.Provider value={onChatHost}>{page}</OnChatHost.Provider>;
 }
@@ -326,7 +334,7 @@ function Security() {
 // Home: start a chat, see links and chats
 // ------------------------------------------------------------------------------------------
 
-function Home({ apexes }: { apexes: string[] }) {
+function Home({ apexes, tor }: { apexes: string[]; tor: { via: boolean; onion: string | null } | null }) {
   const onChat = useContext(OnChatHost);
   const [invites, setInvites] = useState<StoredInvite[]>([]);
   const [rooms, setRooms] = useState<StoredRoom[]>([]);
@@ -555,6 +563,14 @@ function Home({ apexes }: { apexes: string[] }) {
         erased as soon as it has been used, so even a stolen device or key can&apos;t open messages
         that were already sent. To start, make a link and send it to the person you want to talk to.
       </p>
+
+      {tor && !tor.via ? (
+        <p className="count">
+          Safest: open this page in <a href="https://www.torproject.org/download/" rel="noreferrer">Tor Browser</a>, so
+          your internet provider can&apos;t see that you use it.
+          {tor.onion ? <> Onion address: <span className="mono" style={{ wordBreak: "break-all" }}>{tor.onion}</span></> : null}
+        </p>
+      ) : null}
 
       {!onChat && apexes.length ? (
         <div className="card">

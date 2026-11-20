@@ -2,6 +2,7 @@ import type { Metadata } from "next";
 import { headers } from "next/headers";
 import ChatApp from "@/components/ChatApp";
 import { chatApexes, isChatRequest } from "@/lib/chat-hosts";
+import { onionAddress, viaTor } from "@/lib/tor";
 
 export const dynamic = "force-dynamic";
 
@@ -17,6 +18,13 @@ export async function generateMetadata(): Promise<Metadata> {
 }
 
 export default async function ChatPage() {
-  const onChatHost = isChatRequest(await headers());
-  return <ChatApp apexes={onChatHost ? [] : chatApexes()} onChatHost={onChatHost} />;
+  const h = await headers();
+  const onChatHost = isChatRequest(h);
+  return (
+    <ChatApp
+      apexes={onChatHost ? [] : chatApexes()}
+      onChatHost={onChatHost}
+      tor={onChatHost ? null : { via: viaTor(h), onion: onionAddress() }}
+    />
+  );
 }

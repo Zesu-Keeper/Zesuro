@@ -12,7 +12,15 @@ People use Zesuro to put a statement on record before something happens, or to s
 
 ### Posting a statement
 
-Open **Say it** (the highlighted button at the top), write a title and your text, enter the name you want shown, choose when it will be shown, and press Seal. From that moment the text is public with the exact time next to it. Nobody can edit or delete it afterwards, including the owner of the site.
+Open **Say it** (the highlighted button at the top), write a title and your text, enter the name you want shown, choose when it will be shown, and press Seal. Nobody can edit or delete it afterwards, including the owner of the site.
+
+### Staying safe while you post
+
+- **A quick check first.** The page asks three questions: is this a work or shared device, is someone else running your network, and does anyone else look at this device. If any answer is yes, stop and use a personal device somewhere else.
+- **Details that give you away.** As you type, the page lists names, dates, numbers, places and jobs it finds. Ask yourself how many people know each one. You can hide any of them until you reveal, with one tap.
+- **Hidden marks.** Text copied from a work document can carry invisible characters or look-alike letters that trace it to one copy. The page spots these and can remove them. Wording can be tagged too, so put copied text in your own words.
+- **A delay by default.** A post normally appears at a random time in the next 1 to 6 hours, and its recorded time is when it appears. That stops anyone matching the post to the moment you were online. You can turn the delay off when the exact time matters more.
+- **Leave quickly.** The button in the corner, or pressing Esc twice, swaps the page for an ordinary search page.
 
 ### Choosing when your name is shown
 

@@ -24,6 +24,7 @@ interface Live {
   handle: string | null;
   revealedAt: number | null;
   revealAt: number | null;
+  createdAt?: number;
 }
 
 export default function Mine() {
@@ -51,6 +52,7 @@ export default function Mine() {
               handle: entry.handle,
               revealedAt: entry.revealedAt,
               revealAt: entry.revealAt,
+              createdAt: entry.createdAt,
             };
           }
         } catch {
@@ -158,12 +160,26 @@ export default function Mine() {
                 </p>
               ) : null}
               <div className="meta">
-                <span className={`badge ${l?.status ?? "anonymous"}`}>
-                  {l ? l.status : "…"}
-                </span>
-                <span>
-                  Sealed <Stamp ms={m.createdAt} />
-                </span>
+                {!l && m.pendingBy ? (
+                  <span className="badge unknown">waiting</span>
+                ) : (
+                  <span className={`badge ${l?.status ?? "anonymous"}`}>
+                    {l ? l.status : "…"}
+                  </span>
+                )}
+                {!l && m.pendingBy ? (
+                  <span>
+                    {m.pendingBy > Date.now() ? (
+                      <>Appears on the record at a random time before <Stamp ms={m.pendingBy} /></>
+                    ) : (
+                      <>Should appear on the record any moment now</>
+                    )}
+                  </span>
+                ) : (
+                  <span>
+                    Sealed <Stamp ms={l?.createdAt ?? m.createdAt} />
+                  </span>
+                )}
                 {done && l.handle ? (
                   <span>
                     as <span className="who">{l.handle}</span>

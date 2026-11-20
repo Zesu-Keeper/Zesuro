@@ -44,6 +44,8 @@ export interface MineEntry {
   secret?: Secret | null;
   /** 2 = per-entry key and content-bound commitment (see lib/commit.ts). Absent = 1. */
   commitV?: 1 | 2;
+  /** A delayed post: not on the record yet, and due to appear by this time. */
+  pendingBy?: number;
 }
 
 /** Marks where a redaction sits in the public text. Must match the server. */

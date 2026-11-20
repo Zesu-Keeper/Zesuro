@@ -364,6 +364,7 @@ function toPublic(r: Row, now: number): PublicEntry {
  * opened by releaseDueTimelocks(), started in the background at the end of this function.
  */
 function applyDueReveals(now: number): void {
+  releasePending(now);
   const db = getDb();
   // Read first: most requests find nothing due, and a write would take SQLite's single write
   // lock on every page view.
@@ -546,6 +547,8 @@ export interface SealInput {
   revealPublic?: unknown;
   /** Must be 2: the commitment covers the entry's content (lib/commit.ts). */
   commitV?: unknown;
+  /** "hours": hold the post and write it into the record at a random time in the next few hours. */
+  delay?: unknown;
 }
 
 /** Longest time-lock ciphertext accepted (armored text): a 32 KB bundle is about 44 KB. */
@@ -574,7 +577,7 @@ function parseTimelock(raw: unknown, revealAt: number): { round: number; ct: str
   return { round, ct, hash: sha256Hex(ct) };
 }
 
-export async function sealEntry(input: SealInput): Promise<PublicEntry> {
+export async function sealEntry(input: SealInput): Promise<PublicEntry | PendingSeal> {
   assertRecordWritable();
   const { uid, commitment, nonce, mode } = input;
   if (typeof uid !== "string" || !UUID.test(uid)) throw new EntryError("Bad id");
@@ -692,6 +695,119 @@ export async function sealEntry(input: SealInput): Promise<PublicEntry> {
     if (deadlineAt < now + 30_000) throw new EntryError("Deadline must be in the future");
   }
 
+  const prepared: Prepared = {
+    uid, text, commitment, nonce, mode, revealAt, deadlineAt, title, placeMode, publicPlace,
+    secretCommit, tl, pkg, revealPublic, secretPkg, secretBlob, whole, dup,
+  };
+  if (input.delay === "hours") return queuePending(prepared, now);
+  return insertPrepared(prepared, now);
+}
+
+/** Everything a checked entry needs to be written into the chain, at sealing or later at its release. */
+interface Prepared {
+  uid: string;
+  text: string;
+  commitment: string;
+  nonce: string;
+  mode: Mode;
+  revealAt: number | null;
+  deadlineAt: number | null;
+  title: string;
+  placeMode: PlaceMode;
+  publicPlace: Place | null;
+  secretCommit: string | null;
+  tl: { round: number; ct: string; hash: string } | null;
+  pkg: Opening | null;
+  revealPublic: number;
+  secretPkg: Secret | null;
+  secretBlob: string | null;
+  whole: string;
+  dup: string;
+}
+
+// ---- Delayed release ---------------------------------------------------------------------
+// A post that appears seconds after its author was online can be matched to them by anyone who watches the
+// network. So by default a sealed post waits, and is written into the record at a random time in the next
+// few hours. Its recorded time is the time it was released. Nothing about it is public until then.
+
+const HOUR = 3_600_000;
+export const DELAY_MIN = HOUR;
+export const DELAY_MAX = 6 * HOUR;
+
+export interface PendingSeal {
+  pending: true;
+  uid: string;
+  /** The post appears somewhere between these two times. */
+  releaseFrom: number;
+  releaseBy: number;
+}
+
+function randomBelow(n: number): number {
+  return Number(randomBytes(6).readUIntBE(0, 6) % n);
+}
+
+function queuePending(p: Prepared, now: number): PendingSeal {
+  const latest = now + DELAY_MAX;
+  if ((p.revealAt !== null && p.revealAt < latest + 60_000) || (p.deadlineAt !== null && p.deadlineAt < latest + 60_000))
+    throw new EntryError(
+      "A delayed post appears some time in the next 6 hours, so its reveal date and deadline have to be later than that. Pick a later date, or publish it now.",
+    );
+  const db = getDb();
+  if (db.prepare("SELECT 1 FROM entries WHERE uid = ? OR commitment = ? OR nonce = ?").get(p.uid, p.commitment, p.nonce))
+    throw new EntryError("That entry already exists", 409);
+  const releaseAt = now + DELAY_MIN + randomBelow(DELAY_MAX - DELAY_MIN);
+  try {
+    db.prepare(
+      "INSERT INTO pending_entries (uid, commitment, nonce, payload, release_at, created_at) VALUES (?, ?, ?, ?, ?, ?)",
+    ).run(p.uid, p.commitment, p.nonce, JSON.stringify(p), releaseAt, now);
+  } catch (e) {
+    if (e instanceof Error && /UNIQUE/i.test(e.message)) throw new EntryError("That entry already exists", 409);
+    throw e;
+  }
+  return { pending: true, uid: p.uid, releaseFrom: now + DELAY_MIN, releaseBy: latest };
+}
+
+let releasingPending = false;
+/** Writes every waiting post whose time has come into the record. Cheap when nothing is due. */
+export function releasePending(now: number): number {
+  if (releasingPending) return 0;
+  const db = getDb();
+  if (!db.prepare("SELECT 1 FROM pending_entries WHERE release_at <= ? LIMIT 1").get(now)) return 0;
+  releasingPending = true;
+  let done = 0;
+  try {
+    assertRecordWritable();
+    const rows = db
+      .prepare("SELECT uid, payload FROM pending_entries WHERE release_at <= ? ORDER BY release_at LIMIT 50")
+      .all(now) as { uid: string; payload: string }[];
+    for (const r of rows) {
+      try {
+        insertPrepared(JSON.parse(r.payload) as Prepared, now);
+        done++;
+      } catch (e) {
+        // A duplicate can never be written; anything else is tried again next time.
+        if (!(e instanceof EntryError && e.status === 409)) continue;
+      }
+      db.prepare("DELETE FROM pending_entries WHERE uid = ?").run(r.uid);
+    }
+  } catch {
+    /* the record is not writable here now: the posts keep waiting */
+  } finally {
+    releasingPending = false;
+  }
+  return done;
+}
+
+/** Whether a post is still waiting to be released (it is otherwise unknown here). */
+export function isPending(uid: string): boolean {
+  return !!getDb().prepare("SELECT 1 FROM pending_entries WHERE uid = ?").get(uid);
+}
+
+function insertPrepared(p: Prepared, now: number): PublicEntry {
+  const {
+    uid, text, commitment, nonce, mode, revealAt, deadlineAt, title, placeMode, publicPlace,
+    secretCommit, tl, pkg, revealPublic, secretPkg, secretBlob, whole, dup,
+  } = p;
   const schedSalt = randomBytes(16).toString("hex");
   const db = getDb();
   db.exec("BEGIN IMMEDIATE");
@@ -773,6 +889,7 @@ export async function sealEntry(input: SealInput): Promise<PublicEntry> {
   }
   return getEntry(uid)!;
 }
+
 
 export function getEntry(uid: string): PublicEntry | null {
   const now = Date.now();
