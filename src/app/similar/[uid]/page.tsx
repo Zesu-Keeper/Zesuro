@@ -30,8 +30,8 @@ export default async function Similar({
     <main>
       <h1>Similar entries</h1>
       <p className="lede">
-        Entries that say much the same thing as this one, best ranked first. Each is its own
-        sealed record with its own time and author.
+        Posts that say much the same thing as this one, best first. Each one was posted
+        separately, with its own time.
       </p>
       <EntryCard e={e} />
       <h2 style={{ fontSize: "1.1rem" }}>

@@ -6,7 +6,7 @@ import { anchorPublicKey, listAnchors } from "@/lib/anchors";
 export const dynamic = "force-dynamic";
 export const metadata: Metadata = {
   title: "Anchors · Zesuro",
-  description: "Signed tips of the record, countersigned by independent mirrors.",
+  description: "Proof that the record has not been changed, checked by other sites.",
 };
 
 export default function AnchorsPage() {

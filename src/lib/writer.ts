@@ -50,7 +50,7 @@ export function writerStatus(): { ok: boolean; why: string } {
 /** Throws (HTTP 503) unless this server may write the record. Call before adding an entry or comment. */
 export function assertRecordWritable(): void {
   const s = writerStatus();
-  if (!s.ok) throw new EntryError("This server is read-only: it has not been authorised to write the record. Try the current address.", 503);
+  if (!s.ok) throw new EntryError("This server can't accept new posts right now. Try the main address.", 503);
 }
 
 /** For tests: forget the cached answer. */

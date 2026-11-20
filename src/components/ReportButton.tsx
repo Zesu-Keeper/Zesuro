@@ -77,7 +77,7 @@ export default function ReportButton({
         className={`link report${n > 0 ? " flagged" : ""}`}
         onClick={report}
         disabled={state === "busy"}
-        title="Flag as spam. Flags are counted in public and push an entry down the ranking; nothing is hidden or removed."
+        title="Flag as spam. Flags are counted publicly and push a post down the list. Nothing is hidden or removed."
       >
         Spam{tally}
       </button>

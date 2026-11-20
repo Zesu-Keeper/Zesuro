@@ -128,8 +128,8 @@ export default function Transfer() {
             </p>
             {plan.p.deviceKeyConflict ? (
               <p>
-                This browser already has its own key, so the import was stopped. Replacing it would cut you off from what you posted here. Use a browser that has no
-                Zesuro keys yet, or move this browser&apos;s keys the other way.
+                This browser already has its own key, so nothing was imported. Replacing it would cut you off from what you posted here. Use a browser with no Zesuro keys
+                yet, or move this browser&apos;s keys the other way.
               </p>
             ) : (
               <button className="primary" onClick={apply} disabled={!plan.p.add.length}>
