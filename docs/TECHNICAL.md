@@ -26,9 +26,9 @@ node --no-warnings --experimental-transform-types --import ./scripts/ts-resolve.
 
 Get the root public key from somewhere other than the site. The file `deploy/ROOT-KEY.txt` in the repository holds it, and the Mirrors page shows what the site says it is. Compare the copies before you trust any of them.
 
-### Mirrors and impostors
+### Mirrors
 
-The Mirrors page lists sites the root key vouches for as faithful copies, and sites or keys it names as impostors. The list is signed, but the page only displays it. Check the signed file yourself:
+The Mirrors page lists sites the root key approves as faithful copies, and any sites or keys it says are not connected to Zesuro. The list is signed, but the page only displays it. Check the signed file yourself:
 
 ```
 node scripts/sites.mjs verify --file sites.json --root <root public key>

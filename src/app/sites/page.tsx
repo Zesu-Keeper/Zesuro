@@ -5,8 +5,8 @@ import Stamp from "@/components/Stamp";
 
 export const dynamic = "force-dynamic";
 export const metadata: Metadata = {
-  title: "Mirrors and impostors · Zesuro",
-  description: "Sites the root key vouches for as mirrors, and sites it names as impostors.",
+  title: "Mirrors · Zesuro",
+  description: "Other sites that keep a copy of the Zesuro record, and sites the owner says are not connected to it.",
 };
 
 type Mirror = { url: string; name: string; key?: string; note?: string; at: number };
@@ -38,51 +38,57 @@ export default function SitesPage() {
   const root = rootKey();
   return (
     <main>
-      <h1>Mirrors and impostors</h1>
+      <h1>Mirrors</h1>
       <p className="lede">
-        The holder of the root key keeps two lists and signs them. <strong>Mirrors</strong> are sites the root
-        vouches for as keeping a faithful copy of this record. <strong>Impostors</strong> are sites or keys that
-        are not part of it: they must not be trusted to sign, publish or vouch for anything here.
+        A mirror is another website that keeps its own copy of the Zesuro record. If this site ever changed
+        something, the copies would no longer match. You do not need to do anything with this page to use Zesuro.
       </p>
-      <p className="meta">
-        This page only displays the lists. Do not trust it: check the signed file against the root public key you got
-        from someone other than this site, with{" "}
-        <span className="mono">node scripts/sites.mjs verify --file sites.json --root &lt;root key&gt;</span>. The file is at{" "}
-        <a href="/api/sites">/api/sites</a>.
-      </p>
-      {root ? (
-        <p className="meta">
-          Root public key, as this site states it: <span className="mono" style={{ wordBreak: "break-all" }}>{root}</span>
-          <br />
-          Do not take this on this site&apos;s word. Compare it with copies from other places before you pin it.
-        </p>
-      ) : null}
-      {!m ? <p className="empty">No list has been signed yet.</p> : null}
+      {!m ? <p className="empty">No mirrors have been listed yet.</p> : null}
       {m ? (
         <>
-          <p className="meta">
-            List {m.serial}, signed <Stamp ms={m.at} />
-          </p>
-          <h2>Mirrors ({m.mirrors.length})</h2>
-          {m.mirrors.length === 0 ? <p className="empty">None listed.</p> : null}
+          <h2>Approved mirrors ({m.mirrors.length})</h2>
+          <p className="meta">Sites the owner has approved as keeping a faithful copy.</p>
+          {m.mirrors.length === 0 ? <p className="empty">None yet.</p> : null}
           {m.mirrors.map((s) => (
             <div className="card" key={s.url}>
               <strong>{s.name}</strong> <span className="mono">{s.url}</span>
-              {s.key ? <div className="meta mono">key {s.key.slice(0, 40)}…</div> : null}
               {s.note ? <p>{s.note}</p> : null}
             </div>
           ))}
-          <h2>Impostors: not signed by the root, do not trust ({m.malicious.length})</h2>
-          {m.malicious.length === 0 ? <p className="empty">None listed.</p> : null}
-          {m.malicious.map((s, i) => (
-            <div className="card" key={`${s.url ?? ""}${s.key ?? ""}${i}`}>
-              {s.url ? <span className="mono">{s.url}</span> : <em>key only</em>}
-              {s.key ? <div className="meta mono">key {s.key.slice(0, 40)}…</div> : null}
-              <p>{s.reason}</p>
-            </div>
-          ))}
+          {m.malicious.length > 0 ? (
+            <>
+              <h2>Not connected to Zesuro ({m.malicious.length})</h2>
+              <p className="meta">Sites the owner says are not Zesuro and are not approved. Be careful with them.</p>
+              {m.malicious.map((s, i) => (
+                <div className="card" key={`${s.url ?? ""}${s.key ?? ""}${i}`}>
+                  {s.url ? <span className="mono">{s.url}</span> : <em>A signing key, with no website</em>}
+                  <p>{s.reason}</p>
+                </div>
+              ))}
+            </>
+          ) : null}
+          <p className="meta">
+            List {m.serial}, updated <Stamp ms={m.at} />
+          </p>
         </>
       ) : null}
+      <details className="card">
+        <summary>For people who want to check this list</summary>
+        <p className="meta">
+          The lists are signed with the owner&apos;s key, so they cannot be altered without it being noticed. This page
+          only shows them. To check the signature yourself, you need the owner&apos;s public key from somewhere other than
+          this site, then run{" "}
+          <span className="mono">node scripts/sites.mjs verify --file sites.json --root &lt;key&gt;</span> on the file at{" "}
+          <a href="/api/sites">/api/sites</a>. Most people can skip this.
+        </p>
+        {root ? (
+          <p className="meta">
+            The key this site gives: <span className="mono" style={{ wordBreak: "break-all" }}>{root}</span>
+            <br />
+            Compare it with a copy from another place before relying on it.
+          </p>
+        ) : null}
+      </details>
     </main>
   );
 }

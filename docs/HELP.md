@@ -105,7 +105,7 @@ The owner holds a master key, kept off the server. Only the server that key has 
 
 ### Mirrors
 
-A mirror is another site that keeps a copy of the record and checks it. The [Mirrors page](/sites) lists the ones the owner vouches for, and names impostors that must not be trusted. The [Anchors page](/anchors) shows the signed checkpoints that mirrors countersign.
+A mirror is another site that keeps a copy of the record and checks it. The [Mirrors page](/sites) lists the ones the owner has approved. The [Anchors page](/anchors) shows the signed checkpoints that mirrors countersign.
 
 ### Checking it yourself
 
@@ -148,7 +148,7 @@ You can run a private copy to read and check the record. To host a copy for othe
 
 ### On this site
 
-- [Mirrors and impostors](/sites)
+- [Mirrors](/sites)
 - [Anchors](/anchors)
 - [Record check](/api/chain)
 
