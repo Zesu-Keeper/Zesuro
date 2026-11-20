@@ -96,14 +96,14 @@ export default async function EntryPage({ params }: { params: Promise<{ uid: str
       <h1 style={{ fontSize: "1.1rem" }}>How this is kept safe</h1>
       <div className="card">
         <p className="lede" style={{ marginBottom: 8 }}>
-          This is post number {e.seq}. It is linked to the post before it, so nobody can change
-          its words or its time without it showing.{" "}
+          Nobody can change this post without it being noticed. It is linked to the post before it,
+          and other websites keep copies of the whole record and check it.{" "}
           <Link href="/help#is-it-safe">How this works</Link>
         </p>
         <details>
           <summary>Technical details</summary>
           <p className="meta">
-            For people who want to check it themselves. The <Link href="/help/technical#how-the-cryptography-fits-together">technical guide</Link> explains what these are.
+            Only needed if you want to check it yourself. The <Link href="/help/technical#how-the-cryptography-fits-together">technical guide</Link> explains each item. This is post number {e.seq}.
           </p>
         <p className="mono">entry hash: {e.entryHash}</p>
         <p className="mono">previous hash: {e.prevHash}</p>
@@ -148,17 +148,9 @@ export default async function EntryPage({ params }: { params: Promise<{ uid: str
             shown here once it is no longer private.
           </p>
         ) : null}
-        </details>
-        <p className="meta">
-          Other sites keep copies of the record and sign it every few minutes, so any change would be
-          caught. <Link href="/anchors">See the stamps</Link>. Until one has signed a stamp made after
-          this post, the time shown is only this site&apos;s word.
-        </p>
-      </div>
-
-      {e.status === "revealed" && e.opening ? (
-        <details className="card">
-          <summary>Check that the author really wrote this</summary>
+        {e.status === "revealed" && e.opening ? (
+        <div>
+          <p className="lbl">Check that the author wrote this</p>
           <p className="meta">
             The author&apos;s key is the proof. The <Link href="/help/technical#checking-who-wrote-a-post">technical guide</Link> shows how to check it.
           </p>
@@ -194,8 +186,15 @@ export default async function EntryPage({ params }: { params: Promise<{ uid: str
           <p className="mono">public key: {JSON.stringify(e.opening.pub)}</p>
           <p className="mono">salt: {e.opening.salt}</p>
           <p className="mono">signature: {e.opening.sig}</p>
+        </div>
+        ) : null}
+        <p className="meta">
+          Other sites sign the record every few minutes (<Link href="/anchors">see the stamps</Link>).
+          Until one has signed a stamp made after this post, the time shown is only this site&apos;s word.
+        </p>
         </details>
-      ) : null}
+      </div>
+
     </main>
   );
 }
