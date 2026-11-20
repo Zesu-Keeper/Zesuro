@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useEffect, useMemo, useRef, useState, useSyncExternalStore } from "react";
+import { createContext, useCallback, useContext, useEffect, useMemo, useRef, useState, useSyncExternalStore } from "react";
 import Link from "next/link";
 import Stamp from "./Stamp";
 import {
@@ -50,6 +50,7 @@ import { ensureHello, loadSnapshot, pollRoom, sendMessage, startRoom, type Item 
 import type { CommitContent } from "@/lib/commit";
 import { postWithTicket, warmTicket } from "@/lib/ticket-client";
 import { wipeBrowser } from "@/lib/wipe";
+import { randomChatOrigin } from "@/lib/chat-hosts";
 
 type Route = { view: "home" } | { view: "join"; secret: string } | { view: "room"; id: string };
 
@@ -62,9 +63,15 @@ function readRoute(): Route {
   return { view: "home" };
 }
 
+/** True on a private chat address: nothing there may say what site this is. */
+const OnChatHost = createContext(false);
+/** The path the chat is served from: "/" on a private address, "/chat" on the main site. */
+const chatPath = () => (location.pathname === "/" ? "/" : "/chat");
+
 function go(hash: string) {
   // replaceState keeps link secrets out of the back button's history.
-  history.replaceState(null, "", hash ? `/chat#${hash}` : "/chat");
+  const base = chatPath();
+  history.replaceState(null, "", hash ? `${base}#${hash}` : base);
   window.dispatchEvent(new HashChangeEvent("hashchange"));
 }
 
@@ -102,7 +109,7 @@ function useLocked(): boolean {
   );
 }
 
-export default function ChatApp() {
+export default function ChatApp({ apexes = [], onChatHost = false }: { apexes?: string[]; onChatHost?: boolean }) {
   const [route, setRoute] = useState<Route | null>(null);
   const locked = useLocked();
   useEffect(() => {
@@ -132,10 +139,16 @@ export default function ChatApp() {
   if (!route) return <p className="empty">Loading…</p>;
   if (typeof crypto === "undefined" || !crypto.subtle)
     return <p className="err">This browser can&apos;t do the encryption private chats need.</p>;
-  if (locked) return <LockScreen />;
-  if (route.view === "join") return <Join secret={route.secret} />;
-  if (route.view === "room") return <Room key={route.id} id={route.id} />;
-  return <Home />;
+  const page = locked ? (
+    <LockScreen />
+  ) : route.view === "join" ? (
+    <Join secret={route.secret} />
+  ) : route.view === "room" ? (
+    <Room key={route.id} id={route.id} />
+  ) : (
+    <Home apexes={apexes} />
+  );
+  return <OnChatHost.Provider value={onChatHost}>{page}</OnChatHost.Provider>;
 }
 
 // ------------------------------------------------------------------------------------------
@@ -313,7 +326,8 @@ function Security() {
 // Home: start a chat, see links and chats
 // ------------------------------------------------------------------------------------------
 
-function Home() {
+function Home({ apexes }: { apexes: string[] }) {
+  const onChat = useContext(OnChatHost);
   const [invites, setInvites] = useState<StoredInvite[]>([]);
   const [rooms, setRooms] = useState<StoredRoom[]>([]);
   const [uses, setUses] = useState<Record<string, number>>({});
@@ -474,7 +488,7 @@ function Home() {
     reload();
   }
 
-  const linkOf = (inv: StoredInvite) => `${location.origin}/chat#${inviteFragment(inv.secret)}`;
+  const linkOf = (inv: StoredInvite) => `${location.origin}${chatPath()}#${inviteFragment(inv.secret)}`;
 
   // The emergency button: end every chat for both people, cancel unused links, then erase this browser's copies.
   async function endAllAndErase() {
@@ -522,7 +536,9 @@ function Home() {
   async function eraseEverything() {
     if (
       !window.confirm(
-        "Erase everything Zesuro saved in this browser?\n\nThis also deletes the keys to your own posts. Unless you saved a backup of your key, you will never be able to reveal them. Chats are not ended for the other person. This can't be undone.",
+        (onChat
+          ? "Erase everything saved in this browser for this address?\n\nChats are not ended for the other person. This can't be undone."
+          : "Erase everything Zesuro saved in this browser?\n\nThis also deletes the keys to your own posts. Unless you saved a backup of your key, you will never be able to reveal them. Chats are not ended for the other person. This can't be undone."),
       )
     )
       return;
@@ -539,6 +555,30 @@ function Home() {
         erased as soon as it has been used, so even a stolen device or key can&apos;t open messages
         that were already sent. To start, make a link and send it to the person you want to talk to.
       </p>
+
+      {!onChat && apexes.length ? (
+        <div className="card">
+          <h2 className="title">Want nothing in your browser to point to this site?</h2>
+          <p className="count">
+            Start the chat on a random private address instead. Your browser will only ever show that
+            address, which doesn&apos;t mention this site, so nothing it keeps can be linked back here. The trade-off:
+            you can&apos;t show the other person that you wrote a public post there, because your post keys
+            stay on this site.
+          </p>
+          <div className="row" style={{ justifyContent: "flex-start" }}>
+            <button
+              type="button"
+              className="primary"
+              onClick={() => {
+                const to = randomChatOrigin(apexes);
+                if (to) window.location.href = `${to}/`;
+              }}
+            >
+              Open a private address
+            </button>
+          </div>
+        </div>
+      ) : null}
 
       <div className="card">
         <h2 className="title">Start a private chat</h2>
@@ -610,9 +650,14 @@ function Home() {
 
       <p className="count">
         The other person never sees your name, your address or an account. If you started the chat,
-        they only see a made-up name that exists for this chat alone. Later you can choose to show
-        them that you wrote a particular public post, without saying who you are.{" "}
-        <Link href="/mine">Back up your key</Link> so you can still do that from another device.
+        they only see a made-up name that exists for this chat alone.
+        {onChat ? null : (
+          <>
+            {" "}Later you can choose to show them that you wrote a particular public post, without
+            saying who you are. <Link href="/mine">Back up your key</Link> so you can still do that from
+            another device.
+          </>
+        )}
       </p>
 
       {invites.length ? <h2 className="chat-h">Links waiting to be opened</h2> : null}
@@ -696,11 +741,15 @@ function Home() {
         </div>
         <p className="count">The chats stay on the site for the other person. You just can&apos;t read them here again.</p>
         <div className="row" style={{ justifyContent: "flex-start" }}>
-          <button type="button" onClick={eraseEverything}>Erase everything Zesuro saved in this browser</button>
+          <button type="button" onClick={eraseEverything}>
+            {onChat ? "Erase everything saved here" : "Erase everything Zesuro saved in this browser"}
+          </button>
         </div>
-        <p className="count">
-          This also deletes the keys to your own posts, so only do it if you have a backup of your key.
-        </p>
+        {onChat ? null : (
+          <p className="count">
+            This also deletes the keys to your own posts, so only do it if you have a backup of your key.
+          </p>
+        )}
         <p className="count">
           Erasing can&apos;t clear your browser&apos;s history (the address of a chat link may still be
           listed there), files you saved such as transcripts, or screenshots. For the fewest traces, open
@@ -719,9 +768,11 @@ function Home() {
           <li>Deleting removes the messages from this site. It can&apos;t remove a copy the other person saved or took a photo of. Scrambled copies can stay in the site&apos;s backups for up to 14 days.</li>
           <li>If you can, compare the safety code with the other person. If the codes match, nobody is listening in the middle.</li>
         </ul>
-        <p className="count">
-          More in the <Link href="/help#private-chat">help guide</Link>.
-        </p>
+        {onChat ? null : (
+          <p className="count">
+            More in the <Link href="/help#private-chat">help guide</Link>.
+          </p>
+        )}
       </details>
     </main>
   );
@@ -876,6 +927,7 @@ function Join({ secret }: { secret: string }) {
 type ProofState = { status: "checking" | "ok" | "bad" | "gone"; title?: string; createdAt?: number };
 
 function Room({ id }: { id: string }) {
+  const onChat = useContext(OnChatHost);
   const [room] = useState<StoredRoom | null>(() => findRoom(id));
   const [keys, setKeys] = useState<RoomKeys | null>(null);
   const [items, setItems] = useState<Item[]>([]);
@@ -1185,7 +1237,7 @@ function Room({ id }: { id: string }) {
     if (!room) return;
     const who = (f: "a" | "b") => (f === "a" ? "SOURCE" : "CONTACT");
     const lines = [
-      "Zesuro private chat transcript",
+      onChat ? "Private chat transcript" : "Zesuro private chat transcript",
       `Chat ${room.id}`,
       `Saved ${new Date().toISOString()}`,
       source ? `Source pseudonym in this chat ${source.id}` : "Source not introduced or not verified",
@@ -1212,7 +1264,7 @@ function Room({ id }: { id: string }) {
     const url = URL.createObjectURL(new Blob([lines.filter((l) => l !== "").join("\n") + "\n"], { type: "text/plain" }));
     const a = document.createElement("a");
     a.href = url;
-    a.download = `zesuro-chat-${room.id.slice(0, 8)}.txt`;
+    a.download = `${onChat ? "chat" : "zesuro-chat"}-${room.id.slice(0, 8)}.txt`;
     a.click();
     setTimeout(() => URL.revokeObjectURL(url), 5_000);
   }
@@ -1363,12 +1415,12 @@ function Room({ id }: { id: string }) {
                   <>
                     <b>Checked.</b> {me ? "You showed that you" : "They showed that they"} wrote this post on the
                     public record{p.createdAt ? <> at <Stamp ms={p.createdAt} /></> : null}:{" "}
-                    <Link href={`/e/${m.uid}`} target="_blank">{p.title || "open entry"}</Link>
+                    {onChat ? <span>{p.title || "a post"}</span> : <Link href={`/e/${m.uid}`} target="_blank">{p.title || "open entry"}</Link>}
                   </>
                 ) : p?.status === "bad" ? (
                   <>
                     <b>Didn&apos;t check out.</b> {me ? "Your proof" : "They said they wrote"}{" "}
-                    <Link href={`/e/${m.uid}`} target="_blank">this entry</Link>
+                    {onChat ? "this post" : <Link href={`/e/${m.uid}`} target="_blank">this entry</Link>}
                     {me ? " doesn't match the key in this browser." : ", but the proof doesn't match."}
                   </>
                 ) : p?.status === "gone" ? (
@@ -1420,7 +1472,7 @@ function Room({ id }: { id: string }) {
         </button>
       </div>
 
-      {role === "a" ? (
+      {role === "a" && !onChat ? (
         <div className="card">
           <p className="lede" style={{ marginBottom: 8 }}>
             <b>Show them a post is yours.</b> Pick one of your posts. Their browser will check it

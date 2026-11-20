@@ -1,0 +1,80 @@
+# Private chat addresses: every chat lives on its own random address under a neutral domain, so nothing a
+# browser saves (history, cache, bookmarks) names Zesuro. One block serves the bare domain and every random
+# sub-address under each chat domain you own.
+#
+# Needs, for each chat domain (call it chat-one.example):
+#   1. DNS:  chat-one.example      A (and AAAA)  <this server>
+#            *.chat-one.example    A (and AAAA)  <this server>
+#   2. A wildcard certificate, stored under the domain's own name (needs a DNS challenge):
+#        certbot certonly --manual --preferred-challenges dns -d chat-one.example -d '*.chat-one.example'
+#      (or use a certbot DNS plugin for your DNS provider so renewal is automatic)
+#   3. The domain listed in the app's environment:  CHAT_HOSTS=chat-one.example,chat-two.example
+#      (a systemd Environment= line for the zesuro service, then restart it)
+#   4. The domain names in the server_name regex below.
+#
+# The app listens on 127.0.0.1:3000 only. The request limits (zesuro_all, zesuro_write, zesuro_conn) come from the
+# main site file and are shared.
+
+# "chat-one.example" or "k3x9...random.chat-one.example" -> the domain the certificate directory is named after.
+map $ssl_server_name $zesuro_chat_apex {
+    "~^(?:[a-z0-9-]+\.)?(?<apex>chat-one\.example|chat-two\.example)$" $apex;
+    default "";
+}
+
+server {
+    listen 443 ssl;
+    listen [::]:443 ssl;
+    http2 on;
+    server_name ~^(?:[a-z0-9-]+\.)?(?:chat-one\.example|chat-two\.example)$;
+    server_tokens off;
+
+    ssl_certificate     /etc/letsencrypt/live/$zesuro_chat_apex/fullchain.pem;
+    ssl_certificate_key /etc/letsencrypt/live/$zesuro_chat_apex/privkey.pem;
+    ssl_protocols TLSv1.2 TLSv1.3;
+    ssl_session_tickets off;
+
+    # Nothing is logged: not addresses, not names, not paths.
+    access_log off;
+    error_log  /dev/null crit;
+
+    limit_req  zone=zesuro_all   burst=100 nodelay;
+    limit_req  zone=zesuro_write burst=10  nodelay;
+    limit_conn zesuro_conn 40;
+    limit_req_status  429;
+    limit_conn_status 429;
+    client_max_body_size 256k;
+
+    # Nothing from these addresses may be kept by a browser, a proxy or a search engine.
+    add_header Cache-Control "no-store" always;
+    add_header X-Robots-Tag "noindex, nofollow, noarchive" always;
+    add_header X-Content-Type-Options "nosniff" always;
+    add_header Referrer-Policy "no-referrer" always;
+    add_header Strict-Transport-Security "max-age=31536000" always;
+
+    # Only the chat exists here: the page, its scripts, the chat's own endpoints, and read-only access to a public
+    # post (used to check a proof). Everything else, including any page that would say what site this is, is "not found".
+    location ~ ^(/|/chat|/_next/.*|/api/chat/.*|/api/ticket|/api/wipe|/api/entries/[0-9a-f-]+)$ {
+        proxy_pass http://127.0.0.1:3000;
+        proxy_set_header Host $host;
+        proxy_set_header X-Forwarded-For $remote_addr;
+        proxy_set_header X-Forwarded-Proto https;
+        # The app's own caching rules (long-lived script files) are replaced by "never keep this".
+        proxy_hide_header Cache-Control;
+        proxy_hide_header Etag;
+        proxy_hide_header Last-Modified;
+        proxy_hide_header Set-Cookie;
+        proxy_set_header Cookie "";
+    }
+    location / {
+        return 404;
+    }
+}
+
+# The same names over plain HTTP: go to HTTPS, nothing else.
+server {
+    listen 80;
+    listen [::]:80;
+    server_name ~^(?:[a-z0-9-]+\.)?(?:chat-one\.example|chat-two\.example)$;
+    access_log off;
+    return 301 https://$host$request_uri;
+}

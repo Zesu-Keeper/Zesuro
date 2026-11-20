@@ -72,3 +72,16 @@ Dated reveals made before time-locks existed (and by stale open pages, which the
 plaintext by the server until their date. A private reveal date keeps its ciphertext off the public log, so only
 the server holds it until the reveal. Code checks can be
 evaded for a targeted visitor. Mirrors only help if people other than the operator run them.
+
+## Private chat addresses (optional)
+
+Chats can live on random addresses under a neutral domain, so nothing a browser keeps (history, cache, bookmarks) names Zesuro.
+
+1. Pick one or more plain domains you own that do not mention Zesuro. Point the bare name and `*.name` at this server (DNS A and AAAA records).
+2. Get a wildcard certificate for each, stored under the domain's own name. It needs a DNS challenge:
+   `certbot certonly --manual --preferred-challenges dns -d chat-one.example -d '*.chat-one.example'`
+   A certbot plugin for your DNS provider makes renewal automatic.
+3. Copy `deploy/nginx-chat-hosts.conf.example` to `/etc/nginx/sites-available/`, put your domain names in it (the `map` and both `server_name` lines), enable it, and reload nginx.
+4. Add `Environment=CHAT_HOSTS=chat-one.example,chat-two.example` to the service and restart it.
+
+After that, the bare chat domain sends a visitor to a fresh random address, and the main site's Private chat page offers an "Open a private address" button. On those addresses only the chat exists: nothing is logged, nothing is cached, and no page says what site it is. Posts cannot be proved from a private address, because the keys for posts stay on the main site's address.

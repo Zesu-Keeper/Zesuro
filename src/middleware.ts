@@ -1,9 +1,31 @@
 import { NextResponse, type NextRequest } from "next/server";
+import { chatApexes, hostKind, randomChatOrigin } from "@/lib/chat-hosts";
 
 // Content-Security-Policy with a per-request nonce. The author's secret key lives in browser
 // storage, so a script-injection bug would be a key-theft bug; this is the second line of
 // defence behind React's escaping.
 export function middleware(req: NextRequest) {
+  // Private chats on their own throwaway addresses (lib/chat-hosts.ts).
+  const kind = hostKind(req.headers.get("host"));
+  if (kind === "apex") {
+    // The bare chat domain only ever hands out a fresh random address.
+    const to = randomChatOrigin(chatApexes());
+    const r = NextResponse.redirect(`${to}/`, 302);
+    r.headers.set("cache-control", "no-store");
+    return r;
+  }
+  if (kind === "chat") {
+    const path = req.nextUrl.pathname;
+    // Only the chat itself exists here. Everything else looks like nothing is there.
+    if (path !== "/" && path !== "/chat") return new NextResponse(null, { status: 404, headers: { "cache-control": "no-store" } });
+    const res = chatShell(req);
+    return res;
+  }
+  return page(req, false);
+}
+
+/** The page response with the content security policy; `chat` serves the chat page for the plain "/" address. */
+function page(req: NextRequest, chat: boolean) {
   const nonce = btoa(crypto.randomUUID());
   const dev = process.env.NODE_ENV !== "production";
   const csp = [
@@ -25,10 +47,22 @@ export function middleware(req: NextRequest) {
   const headers = new Headers(req.headers);
   headers.set("x-nonce", nonce);
   headers.set("content-security-policy", csp);
-  const res = NextResponse.next({ request: { headers } });
+  let res: NextResponse;
+  if (chat && req.nextUrl.pathname === "/") {
+    const url = req.nextUrl.clone();
+    url.pathname = "/chat";
+    res = NextResponse.rewrite(url, { request: { headers } });
+  } else res = NextResponse.next({ request: { headers } });
   res.headers.set("content-security-policy", csp);
+  if (chat) {
+    // Nothing from a chat address is kept by the browser or indexed.
+    res.headers.set("cache-control", "no-store");
+    res.headers.set("x-robots-tag", "noindex, nofollow, noarchive");
+  }
   return res;
 }
+
+const chatShell = (req: NextRequest) => page(req, true);
 
 export const config = {
   matcher: [
