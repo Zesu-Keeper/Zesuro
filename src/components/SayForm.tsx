@@ -58,6 +58,17 @@ export default function SayForm({ viaTor = false, onion = null }: { viaTor?: boo
   const [placeMode, setPlaceMode] = useState<PlaceMode>("none");
   const [pin, setPin] = useState<Pin | null>(null);
   const [placeLabel, setPlaceLabel] = useState("");
+
+  // Other pages can hand over a title and text in the address after the #, for example the document page.
+  // It stays in the browser: nothing after a # is sent to the site.
+  useEffect(() => {
+    const h = new URLSearchParams(window.location.hash.slice(1));
+    const x = h.get("text");
+    if (!x) return;
+    setText(x.slice(0, 5000));
+    const t = h.get("title");
+    if (t) setTitle(t.slice(0, 100));
+  }, []);
   const [hint, setHint] = useState<string | null>(null);
   const split = splitRedactions(text);
   const hiddenCount = split.parts.length + (placeMode === "hidden" ? 1 : 0);

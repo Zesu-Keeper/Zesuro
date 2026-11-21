@@ -46,6 +46,10 @@ If you would rather remember your key than save a file, you can use a six-word k
 
 Open Transfer on your old device to make a code and a bundle. Open Transfer on the new device and enter them. You can use the same steps to move to a new address of the site.
 
+### Proving a document existed
+
+You can show that you had a file at a certain time without showing anyone what is in it. On the [document page](/document), pick the file. Your browser makes a short fingerprint of it, and the file never leaves your device. If you post the fingerprint, the record keeps it with the time. Later, anyone who holds the exact same file can check it on the same page. Changing even one letter in the file gives a different fingerprint. Only record fingerprints of files you are happy to be linked to, because anyone with the same file can see that it was recorded.
+
 ### Reading and reacting
 
 - Search the record by words or by date.
