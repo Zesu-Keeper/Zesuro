@@ -19,7 +19,7 @@ Open **Say it** (the highlighted button at the top), write a title and your text
 - **A quick check first.** The page asks three questions: is this a work or shared device, is someone else running your network, and does anyone else look at this device. If any answer is yes, stop and use a personal device somewhere else.
 - **Details that give you away.** As you type, the page lists names, dates, numbers, places and jobs it finds. Ask yourself how many people know each one. You can hide any of them until you reveal, with one tap.
 - **Hidden marks.** Text copied from a work document can carry invisible characters or look-alike letters that trace it to one copy. The page spots these and can remove them. Wording can be tagged too, so put copied text in your own words.
-- **A delay by default.** A post normally appears at a random time in the next 1 to 6 hours, and its recorded time is when it appears. That stops anyone matching the post to the moment you were online. You can turn the delay off when the exact time matters more.
+- **A delay by default.** A post normally appears at a random time in the next 1 to 6 hours, and its recorded time is when it appears. That stops anyone matching the post to the moment you were online. You can turn the delay off when the exact time matters more. While it waits, the post is held on the site's server and the site could read it, so it is only safe from outsiders, not from whoever runs the server.
 - **Leave quickly.** The button in the corner, or pressing Esc twice, swaps the page for an ordinary search page.
 
 ### Choosing when your name is shown
@@ -39,6 +39,8 @@ Put words in double square brackets, like `[[this]]`, and the public sees a bloc
 The first time you post, your browser makes a secret key. It is what proves later that you wrote your posts. There is no account and no password.
 
 Back the key up when the site asks you to, and keep the backup somewhere private. Anyone who has it can prove they wrote your posts. If you lose it and have no backup, nobody can restore it for you.
+
+If you would rather remember your key than save a file, you can use a six-word key instead. The site gives you six random words to write down, and those words make the same key on any device. Make one in a browser that has no key yet, on the [six-word key page](/phrase). Only use the words the site gives you, because words you choose yourself are much easier to guess. Anyone who has the six words can post and reveal as you.
 
 ### Using another device
 

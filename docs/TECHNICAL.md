@@ -262,6 +262,10 @@ Do not fix it by hand. Compare with a mirror, find the first entry that differs,
 - **Root key and delegations** are hybrid Ed25519 and SLH-DSA, so a quantum computer would need to break both. Snapshots are encrypted to a hybrid X25519 and ML-KEM-768 recovery key.
 - **Chat** is end to end encrypted between browsers with a Double Ratchet, so it has forward secrecy and heals after a brief compromise. The ratchet state and history are kept on the device, optionally under a passcode.
 
+### Six-word keys
+
+A six-word key is a device key made from six words, so it can be remembered or written on paper. The words are six random picks from the 2048-word BIP-39 English list, which is 66 bits. They are joined with spaces and run through Argon2id (3 passes, 32 MB, one lane, salt `zesuro:six-word-key:v1`) to give 48 bytes. Those bytes, reduced modulo the P-256 group order minus one and then increased by one, are the private scalar. From there the key works like any other device key, so entry keys and salts derive from it as usual. The 66 bits are only safe because every guess costs a second and 32 MB, and only when the words are random, so the page only offers generated words. The key check code is the first two bytes of SHA-256 over `zesuro:key-check:v1:` plus the canonical public key JSON, shown in hex so a typing mistake is noticed. The code is in `src/lib/phrase.ts`.
+
 ### Where to read more
 - [Specification](https://github.com/Zesu-Keeper/Zesuro/blob/main/SPEC.md)
 - [Operator runbook](https://github.com/Zesu-Keeper/Zesuro/blob/main/deploy/RUNBOOK.md)

@@ -96,7 +96,7 @@ export function canonicalPub(p: { kty?: string; crv?: string; x?: string; y?: st
 }
 
 // ---------- key management ----------
-function buildKey(d: string, x: string, y: string): StoredKey {
+export function buildKey(d: string, x: string, y: string): StoredKey {
   return {
     priv: { kty: "EC", crv: "P-256", x, y, d, ext: true, key_ops: ["sign"] },
     pub: { kty: "EC", crv: "P-256", x, y, ext: true, key_ops: ["verify"] },

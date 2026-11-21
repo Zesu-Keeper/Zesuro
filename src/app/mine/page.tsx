@@ -292,6 +292,9 @@ export default function Mine() {
       )}
       <details style={{ marginTop: 16 }}>
         <summary>Restore a key on this device</summary>
+        <p className="count">
+          Made a key from six words instead? <Link href="/phrase#restore">Use your six words here</Link>.
+        </p>
         <label className="lbl" htmlFor="restore">
           Paste the key text (starts with whenisaid-key:v1:)
         </label>
