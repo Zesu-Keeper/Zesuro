@@ -75,6 +75,17 @@ const e2 = await E.sealEntry(m.input);
 ok(e2.hashVersion === 6 && e2.mailboxRoot && e2.witness, "a post can have both a witness and mailbox keys");
 ok(E.verifyChain().ok && checkLog().ok, "the chain still verifies");
 
+// ---- fifty-two weekly mailbox keys
+const wk = MB.makeMailbox(MB.WEEKS);
+const wkPost = await manual({ witness: { round: 1000000, sig: SIG[1000000] }, mailbox: wk.leaves });
+const e3 = await E.sealEntry(wkPost.input);
+ok(e3.hashVersion === 6 && e3.mailboxRoot === MB.mailboxRootOf(wkPost.uid, wk.leaves), "a post with weekly mailbox keys is recorded, and the record fingerprints exactly those keys");
+const INB = await imp("inbox.ts");
+ok(INB.getMailbox(wkPost.uid)?.leaves.length === 52, "the server serves all fifty-two weekly keys");
+const oddPost = await manual({ mailbox: wk.leaves.slice(0, 20) });
+await refuses(E.sealEntry(oddPost.input), /private-reply keys are not valid/, "any other number of keys is refused");
+ok(E.verifyChain().ok && checkLog().ok, "the chain verifies with weekly keys too");
+
 // ---- a bad witness is refused, and nothing is recorded
 const before = E.verifyChain().count;
 const bad = async (witness, re, msg) => { const x = await manual({ witness }); await refuses(E.sealEntry(x.input), re, msg); };

@@ -64,7 +64,7 @@ You can show that you had a file at a certain time without showing anyone what i
 
 Under a post that allows it there is a **Reply privately** button. Your reply is locked so that only the real author of that post can read it. Nobody else can, including this site, and the author stays anonymous. If the author answers, you talk in a private chat that appears under Private chat in the same browser.
 
-When you post, private replies are on unless you turn them off. Replies to your posts appear under **My posts**. Each month's replies use their own key, and your browser throws that key away when the month is over, so old replies can't be opened later.
+When you post, private replies are on unless you turn them off. Replies to your posts appear under **My posts**. Each month's replies use their own key, and your browser throws that key away when the month is over, so old replies can't be opened later. For a very sensitive post, tick the option to change the keys every week instead. Old replies then become unreadable sooner, even to you, so check your replies at least every few days.
 
 ### Is it really a journalist?
 

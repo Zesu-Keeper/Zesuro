@@ -35,7 +35,7 @@ export default function ReplyPrivately({ uid, root, title }: { uid: string; root
       // The keys must be exactly the ones the record holds a fingerprint of.
       if (mb.root !== root || mailboxRootOf(uid, mb.leaves) !== root)
         throw new Error("The private-reply keys for this post don't match the record. Don't send anything.");
-      const idx = monthIndex(mb.createdAt, Date.now());
+      const idx = monthIndex(mb.createdAt, Date.now(), mb.leaves.length);
       if (idx < 0) throw new Error("This post no longer takes private replies: they are open for a year.");
       // A one-time chat link that only the author will ever see.
       const inv = await newInvite(1);

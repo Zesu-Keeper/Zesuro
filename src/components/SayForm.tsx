@@ -11,7 +11,7 @@ import Stamp from "@/components/Stamp";
 import SafetyCheck from "@/components/SafetyCheck";
 import IdentifyPanel from "@/components/IdentifyPanel";
 import { cleanMarks, hidePhrase } from "@/lib/identify";
-import { makeMailbox, mailboxRootOf } from "@/lib/mailbox";
+import { MONTHS, WEEKS, makeMailbox, mailboxRootOf } from "@/lib/mailbox";
 import { normText, normTitle, type CommitContent } from "@/lib/commit";
 import { encodeBundle } from "@/lib/release-bundle";
 import { roundForTime, timelockEncrypt } from "@/lib/timelock";
@@ -97,6 +97,8 @@ export default function SayForm({ viaTor = false, onion = null }: { viaTor?: boo
   const [delayed, setDelayed] = useState(true);
   // Private replies: on by default. Only the real author can ever read them.
   const [replies, setReplies] = useState(true);
+  // For very sensitive posts: change the reply keys every week instead of every month.
+  const [weeklyKeys, setWeeklyKeys] = useState(false);
   const [warnRoot, setWarnRoot] = useState(false);
   const box = useRef<HTMLTextAreaElement>(null);
 
@@ -185,7 +187,7 @@ export default function SayForm({ viaTor = false, onion = null }: { viaTor?: boo
 
       // The commitment covers exactly what the site will record, so what the author later
       // opens can only ever match this text, this title, this place and this entry id.
-      const mbox = replies ? makeMailbox() : null;
+      const mbox = replies ? makeMailbox(weeklyKeys ? WEEKS : MONTHS) : null;
       const content: CommitContent = {
         uid,
         title: normTitle(title),
@@ -632,6 +634,17 @@ export default function SayForm({ viaTor = false, onion = null }: { viaTor?: boo
                     replies, and nobody, including this site, can tell who you are. You see them under My posts.
                   </small>
                 </label>
+                {replies ? (
+                  <label className="opt">
+                    <input type="checkbox" checked={weeklyKeys} onChange={(e) => setWeeklyKeys(e.target.checked)} />
+                    <b>Change the reply keys every week instead of every month</b>
+                    <small>
+                      For very sensitive posts. Old keys are thrown away sooner, so a reply sent earlier can&apos;t be read
+                      by anyone who later gets hold of your device. You need to check your replies at least every few
+                      days, and the post is larger.
+                    </small>
+                  </label>
+                ) : null}
                 <label className="opt">
                   <input type="checkbox" checked={delayed} onChange={(e) => setDelayed(e.target.checked)} />
                   <b>Publish it at a random time in the next few hours (safer)</b>

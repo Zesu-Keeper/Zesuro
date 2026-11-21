@@ -19,6 +19,11 @@ import { bytesToHex, randomBytes } from "@noble/hashes/utils.js";
 
 export const MONTHS = 12;
 export const MONTH_MS = 30 * 86_400_000;
+/** The weekly option, for very sensitive posts: 52 keys instead of 12, so each one is thrown away sooner. */
+export const WEEKS = 52;
+export const WEEK_MS = 7 * 86_400_000;
+/** How long one key lasts, from how many keys a post has. The count is part of what the record fingerprints. */
+export const periodOf = (count: number) => (count === WEEKS ? WEEK_MS : MONTH_MS);
 const B64 = /^[A-Za-z0-9_-]+$/;
 
 export interface MailboxLeaf {
@@ -53,9 +58,9 @@ export function mailboxRootOf(uid: string, leaves: MailboxLeaf[]): string {
   return bytesToHex(sha256(enc.encode(JSON.stringify(["zesuro:mailbox:v1", uid, leaves.map((l) => [l.x, l.k])]))));
 }
 
-/** Strict shape check: exactly twelve months of well-formed public keys. */
+/** Strict shape check: twelve monthly keys, or fifty-two weekly keys, all well formed. */
 export function parseMailboxLeaves(raw: unknown): MailboxLeaf[] | null {
-  if (!Array.isArray(raw) || raw.length !== MONTHS) return null;
+  if (!Array.isArray(raw) || (raw.length !== MONTHS && raw.length !== WEEKS)) return null;
   const out: MailboxLeaf[] = [];
   for (const l of raw) {
     if (!l || typeof l !== "object") return null;
@@ -67,11 +72,12 @@ export function parseMailboxLeaves(raw: unknown): MailboxLeaf[] | null {
   return out;
 }
 
-/** Makes a post's twelve monthly mailbox key pairs. */
-export function makeMailbox(): { leaves: MailboxLeaf[]; secrets: MailboxSecret[] } {
+/** Makes a post's mailbox key pairs: twelve monthly ones, or fifty-two weekly ones. */
+export function makeMailbox(count: number = MONTHS): { leaves: MailboxLeaf[]; secrets: MailboxSecret[] } {
+  if (count !== MONTHS && count !== WEEKS) throw new Error("A mailbox has twelve monthly keys or fifty-two weekly keys");
   const leaves: MailboxLeaf[] = [];
   const secrets: MailboxSecret[] = [];
-  for (let i = 0; i < MONTHS; i++) {
+  for (let i = 0; i < count; i++) {
     const xs = randomBytes(32);
     const seed = randomBytes(64);
     leaves.push({ x: b64u(x25519.getPublicKey(xs)), k: b64u(ml_kem768.keygen(seed).publicKey) });
@@ -81,14 +87,16 @@ export function makeMailbox(): { leaves: MailboxLeaf[]; secrets: MailboxSecret[]
 }
 
 /** Which month's key a reply sent at `now` uses, for a post that went on the record at `sealedAt`. -1 if the year is over. */
-export function monthIndex(sealedAt: number, now: number): number {
-  const i = Math.floor((now - sealedAt) / MONTH_MS);
-  return i >= 0 && i < MONTHS ? i : now < sealedAt ? 0 : -1;
+export function monthIndex(sealedAt: number, now: number, count: number = MONTHS): number {
+  const i = Math.floor((now - sealedAt) / periodOf(count));
+  return i >= 0 && i < count ? i : now < sealedAt ? 0 : -1;
 }
 
-/** Throws away the keys of months that are over (with a week's grace for replies still in transit). */
+/** Throws away the keys of periods that are over, with a short grace for replies still in transit (a week for monthly keys, two days for weekly ones). */
 export function expireSecrets(secrets: MailboxSecret[], sealedAt: number, now: number): MailboxSecret[] {
-  return secrets.map((s, i) => (sealedAt + (i + 1) * MONTH_MS + 7 * 86_400_000 < now ? { x: null, k: null } : s));
+  const period = periodOf(secrets.length);
+  const grace = period === WEEK_MS ? 2 * 86_400_000 : 7 * 86_400_000;
+  return secrets.map((s, i) => (sealedAt + (i + 1) * period + grace < now ? { x: null, k: null } : s));
 }
 
 const info = (uid: string, idx: number) => enc.encode(`zesuro:mailbox:v1:${uid}:${idx}`);
