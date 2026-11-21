@@ -15,6 +15,7 @@ import { makeMailbox, mailboxRootOf } from "@/lib/mailbox";
 import { normText, normTitle, type CommitContent } from "@/lib/commit";
 import { encodeBundle } from "@/lib/release-bundle";
 import { roundForTime, timelockEncrypt } from "@/lib/timelock";
+import { fetchWitness } from "@/lib/witness-client";
 import {
   addMine,
   cleanLabel,
@@ -208,6 +209,9 @@ export default function SayForm({ viaTor = false, onion = null }: { viaTor?: boo
         timelock = { round, ct: timelockEncrypt(encodeBundle({ opening, secret }), round) };
       }
 
+      // A signed number from the public drand timer, fetched now: it proves this post was not made before this moment.
+      const witness = await fetchWitness();
+
       const res = await postWithTicket(
         "/api/entries",
         {
@@ -231,6 +235,7 @@ export default function SayForm({ viaTor = false, onion = null }: { viaTor?: boo
           revealPublic: mode !== "manual" && showDate,
           delay: delayed ? "hours" : undefined,
           mailbox: mbox ? mbox.leaves : undefined,
+          witness: witness ?? undefined,
         },
         trap,
       );

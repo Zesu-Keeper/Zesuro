@@ -1,3 +1,4 @@
+import Stamp from "@/components/Stamp";
 import { contentString } from "@/lib/commit";
 import { sha256Hex } from "@/lib/opening";
 import { notFound } from "next/navigation";
@@ -102,11 +103,19 @@ export default async function EntryPage({ params }: { params: Promise<{ uid: str
           and other websites keep copies of the whole record and check it.{" "}
           <Link href="/help#is-it-safe">How this works</Link>
         </p>
+        {e.witness ? (
+          <p className="meta">
+            Made no earlier than <Stamp ms={e.witness.notBefore} />, according to a public timer that does not depend on this site.
+          </p>
+        ) : null}
         <details>
           <summary>Technical details</summary>
           <p className="meta">
             Only needed if you want to check it yourself. The <Link href="/help/technical#how-the-cryptography-fits-together">technical guide</Link> explains each item. This is post number {e.seq}.
           </p>
+        {e.witness ? (
+          <p className="mono">time witness: drand round {e.witness.round}, signature {e.witness.sig}</p>
+        ) : null}
         <p className="mono">entry hash: {e.entryHash}</p>
         <p className="mono">previous hash: {e.prevHash}</p>
         <p className="mono">author commitment: {e.commitment}</p>

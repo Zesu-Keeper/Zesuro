@@ -35,7 +35,7 @@ import {
 } from "./secret";
 import { getBeacon } from "./beacon";
 import { decodeBundle } from "./release-bundle";
-import { lockedRound, roundForTime, timeOfRound, timelockDecrypt } from "./timelock";
+import { lockedRound, roundForTime, timeOfRound, timelockDecrypt, verifyBeacon } from "./timelock";
 
 export type PlaceMode = "none" | "public" | "hidden";
 export type Mode = "manual" | "date" | "locked";
@@ -68,6 +68,9 @@ interface Row {
   tl_ct: string | null;
   tl_hash: string | null;
   mailbox_root: string | null;
+  /** Hash v6: the drand round a post was made after, and that round's signature. */
+  witness_round: number | null;
+  witness_sig: string | null;
   tl_error: string | null;
   hash_v: number;
   commit_v: number;
@@ -156,6 +159,11 @@ export interface PublicEntry {
   timelock: { hash: string; round: number | null } | null;
   /** Fingerprint of the post's private-reply mailbox keys, or null if it takes no private replies. */
   mailboxRoot: string | null;
+  /**
+   * Hash v6: a drand beacon the author's browser fetched just before posting. The beacon's signature proves the post
+   * was made no earlier than `notBefore`, without relying on this site's clock.
+   */
+  witness: { round: number; sig: string; notBefore: number } | null;
   /** The opened schedule, shown only once nothing private is left in it. */
   schedule: { revealAt: number | null; deadlineAt: number | null; salt: string } | null;
   likes: number;
@@ -203,8 +211,11 @@ function hashEntry(
     schedFixed?: string | null;
     /** SHA-256 of the time-lock ciphertext (hash v4 and later). */
     tlHash?: string | null;
-    /** Fingerprint of the post's private-reply mailbox keys (hash v5 only). */
+    /** Fingerprint of the post's private-reply mailbox keys (hash v5 and later). */
     mailboxRoot?: string | null;
+    /** The drand round and signature the post is witnessed by (hash v6 only). */
+    witnessRound?: number | null;
+    witnessSig?: string | null;
     title: string;
     placeMode: PlaceMode;
     placeLat: number | null;
@@ -213,6 +224,33 @@ function hashEntry(
     secretCommit: string | null;
   },
 ): string {
+  if (version >= 6) {
+    // Version 6 is version 5 plus a drand beacon the author fetched just before posting. The chain covers the round
+    // and its signature, so the proof that the post was made after that moment can never be swapped or removed.
+    return sha256Hex(
+      prev +
+        "\n" +
+        JSON.stringify([
+          6,
+          f.seq,
+          f.uid,
+          f.createdAt,
+          f.title,
+          f.text,
+          f.commitment,
+          f.nonce,
+          f.mode,
+          f.schedFixed ?? scheduleCommit(f.revealAt, f.deadlineAt, f.schedSalt ?? ""),
+          f.placeMode === "public" ? [f.placeLat, f.placeLng, f.placeLabel ?? ""] : null,
+          f.placeMode === "hidden",
+          f.secretCommit,
+          f.tlHash ?? null,
+          f.mailboxRoot ?? null,
+          f.witnessRound ?? null,
+          f.witnessSig ?? null,
+        ]),
+    );
+  }
   if (version >= 5) {
     // Version 5 is version 4 plus the fingerprint of the post's mailbox keys, so they can never be swapped.
     return sha256Hex(
@@ -374,6 +412,10 @@ function toPublic(r: Row, now: number): PublicEntry {
     schedCommit: legacy ? null : (r.sched_fixed ?? scheduleCommit(r.reveal_at, r.deadline_at, r.sched_salt ?? "")),
     timelock: r.tl_hash ? { hash: r.tl_hash, round: datePublic || revealed ? r.tl_round : null } : null,
     mailboxRoot: r.mailbox_root ?? null,
+    witness:
+      r.witness_round !== null && r.witness_round !== undefined && r.witness_sig
+        ? { round: Number(r.witness_round), sig: r.witness_sig, notBefore: timeOfRound(Number(r.witness_round)) }
+        : null,
     schedule: canOpen
       ? { revealAt: r.reveal_at, deadlineAt: r.deadline_at, salt: r.sched_salt! }
       : null,
@@ -582,6 +624,8 @@ export interface SealInput {
   delay?: unknown;
   /** Public keys for private replies to this post, one per month (lib/mailbox.ts). Optional. */
   mailbox?: unknown;
+  /** A drand beacon { round, sig } fetched just before posting. Optional; checked here against the pinned drand key. */
+  witness?: unknown;
 }
 
 /** Longest time-lock ciphertext accepted (armored text): a 32 KB bundle is about 44 KB. */
@@ -732,9 +776,27 @@ export async function sealEntry(input: SealInput): Promise<PublicEntry | Pending
     uid, text, commitment, nonce, mode, revealAt, deadlineAt, title, placeMode, publicPlace,
     secretCommit, tl, pkg, revealPublic, secretPkg, secretBlob, whole, dup,
     mailbox: parseMailbox(input.mailbox, uid),
+    witness: parseWitness(input.witness, now),
   };
   if (input.delay === "hours") return queuePending(prepared, now);
   return insertPrepared(prepared, now);
+}
+
+/** How old a beacon may be when the post is sealed: a browser fetches it just before posting. */
+export const WITNESS_MAX_AGE = 15 * 60_000;
+
+/** Checks a time witness. Missing is fine (the post just has no independent lower bound on its time); a bad one is refused. */
+function parseWitness(raw: unknown, now: number): { round: number; sig: string } | null {
+  if (raw === undefined || raw === null) return null;
+  const bad = () => new EntryError("The time check was out of date. Reload the page and try again.");
+  if (typeof raw !== "object" || Array.isArray(raw)) throw bad();
+  const { round, sig } = raw as Record<string, unknown>;
+  if (typeof round !== "number" || !Number.isSafeInteger(round) || round < 1) throw bad();
+  if (typeof sig !== "string" || !/^[0-9a-f]{96}$/.test(sig)) throw bad();
+  const t = timeOfRound(round);
+  if (t > now + 10_000 || t < now - WITNESS_MAX_AGE) throw bad();
+  if (!verifyBeacon(round, sig)) throw bad();
+  return { round, sig };
 }
 
 /** Checks a post's mailbox keys. Missing is fine (no private replies); malformed is refused. */
@@ -767,6 +829,8 @@ interface Prepared {
   dup: string;
   /** The post's private-reply mailbox: its public keys and their fingerprint (lib/mailbox.ts). */
   mailbox?: { root: string; leaves: MailboxLeaf[] } | null;
+  /** The drand beacon the post is witnessed by (hash v6). */
+  witness?: { round: number; sig: string } | null;
 }
 
 // ---- Delayed release ---------------------------------------------------------------------
@@ -850,7 +914,7 @@ export function isPending(uid: string): boolean {
 function insertPrepared(p: Prepared, now: number): PublicEntry {
   const {
     uid, text, commitment, nonce, mode, revealAt, deadlineAt, title, placeMode, publicPlace,
-    secretCommit, tl, pkg, revealPublic, secretPkg, secretBlob, whole, dup, mailbox,
+    secretCommit, tl, pkg, revealPublic, secretPkg, secretBlob, whole, dup, mailbox, witness,
   } = p;
   const schedSalt = randomBytes(16).toString("hex");
   const db = getDb();
@@ -863,7 +927,7 @@ function insertPrepared(p: Prepared, now: number): PublicEntry {
     const prev = last?.entry_hash ?? GENESIS;
     // Never let the recorded time run backwards, even if the system clock does.
     const createdAt = Math.max(now, last?.created_at ?? 0);
-    const hashV = mailbox ? 5 : tl ? 4 : 3;
+    const hashV = witness ? 6 : mailbox ? 5 : tl ? 4 : 3;
     const entryHash = hashEntry(prev, hashV, {
       seq,
       uid,
@@ -883,6 +947,8 @@ function insertPrepared(p: Prepared, now: number): PublicEntry {
       secretCommit,
       tlHash: tl?.hash ?? null,
       mailboxRoot: mailbox?.root ?? null,
+      witnessRound: witness?.round ?? null,
+      witnessSig: witness?.sig ?? null,
     });
     db.prepare(
       `INSERT INTO entries
@@ -920,6 +986,7 @@ function insertPrepared(p: Prepared, now: number): PublicEntry {
       tl?.hash ?? null,
     );
     db.prepare("INSERT INTO entries_fts (rowid, body) VALUES (?, ?)").run(seq, whole);
+    if (witness) db.prepare("UPDATE entries SET witness_round = ?, witness_sig = ? WHERE seq = ?").run(witness.round, witness.sig, seq);
     if (mailbox) {
       db.prepare("UPDATE entries SET mailbox_root = ? WHERE seq = ?").run(mailbox.root, seq);
       db.prepare("INSERT INTO mailboxes (uid, leaves) VALUES (?, ?)").run(uid, JSON.stringify(mailbox.leaves));
@@ -1285,6 +1352,8 @@ export function verifyChain(): { ok: boolean; count: number; tip: string; broken
       schedFixed: r.sched_fixed,
       tlHash: r.tl_hash,
       mailboxRoot: r.mailbox_root,
+      witnessRound: r.witness_round,
+      witnessSig: r.witness_sig,
       title: r.title,
       placeMode: r.place_mode,
       placeLat: r.place_lat,
@@ -1335,6 +1404,7 @@ export function listLog(afterSeq: number, limit: number) {
         }
       : {}),
     ...(r.hash_v >= 5 ? { mailboxRoot: r.mailbox_root } : {}),
+    ...(r.hash_v >= 6 ? { witnessRound: r.witness_round, witnessSig: r.witness_sig } : {}),
     prevHash: r.prev_hash,
     entryHash: r.entry_hash,
   }));

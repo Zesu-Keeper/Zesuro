@@ -266,6 +266,10 @@ Do not fix it by hand. Compare with a mirror, find the first entry that differs,
 
 A six-word key is a device key made from six words, so it can be remembered or written on paper. The words are six random picks from the 2048-word BIP-39 English list, which is 66 bits. They are joined with spaces and run through Argon2id (3 passes, 32 MB, one lane, salt `zesuro:six-word-key:v1`) to give 48 bytes. Those bytes, reduced modulo the P-256 group order minus one and then increased by one, are the private scalar. From there the key works like any other device key, so entry keys and salts derive from it as usual. The 66 bits are only safe because every guess costs a second and 32 MB, and only when the words are random, so the page only offers generated words. The key check code is the first two bytes of SHA-256 over `zesuro:key-check:v1:` plus the canonical public key JSON, shown in hex so a typing mistake is noticed. The code is in `src/lib/phrase.ts`.
 
+### Time witnesses
+
+A post made with hash version 6 carries a drand quicknet beacon, a round number and its BLS signature, that the author's browser fetched through `/api/beacon` just before posting. The browser checks the signature against the pinned drand key before sending it, and the server checks it again and refuses a beacon that is more than 15 minutes old or from the future. The chain covers the round and the signature, so the post's time can never be shown to be earlier than the beacon without breaking the chain. Together with the mirrors' signed stamps, which give a latest time, the post's time is boxed in without trusting this site's clock. The hash is version 5 with `witnessRound` and `witnessSig` added at the end (see `scripts/log-core.mjs`). A mirror only checks that the hash covers these fields. To check the signatures themselves, use `verifyBeacon` in `src/lib/timelock.ts`. A post made without a witness keeps its older hash version.
+
 ### Where to read more
 - [Specification](https://github.com/Zesu-Keeper/Zesuro/blob/main/SPEC.md)
 - [Operator runbook](https://github.com/Zesu-Keeper/Zesuro/blob/main/deploy/RUNBOOK.md)

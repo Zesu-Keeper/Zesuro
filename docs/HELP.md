@@ -107,7 +107,7 @@ Chat is text only. A message you have already read stays on your device until yo
 
 - **No accounts and no tracking.** You never give an email address or a phone number, and the site does not record visitor addresses.
 - **Your name stays locked.** For dated posts your browser locks your name until the time you chose. The lock is opened by a public timer run by independent organisations, not by the site.
-- **Posts cannot be changed quietly.** Every post and comment is linked to the one before it. Changing anything would break the links after it.
+- **Posts cannot be changed quietly.** Every post and comment is linked to the one before it. Changing anything would break the links after it. New posts also carry a signed number from a public timer, which proves the post was not made before that moment.
 - **Other people keep copies.** Independent sites called mirrors keep their own copy of the record and check it. A rewrite would not match their copies.
 - **The code is public.** Anyone can read how the site works, and the site's scripts are signed so they can be checked.
 

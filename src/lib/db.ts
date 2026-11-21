@@ -59,6 +59,9 @@ function migrate(d: DatabaseSync): void {
   // future drand round: tl_ct is that ciphertext, tl_round its round, tl_hash the SHA-256 the chain covers.
   // tl_error is set if the ciphertext turned out not to hold a valid opening (it then never reveals).
   if (!hasColumn(d, "tl_round")) d.exec("ALTER TABLE entries ADD COLUMN tl_round INTEGER");
+  // Hash v6: the drand beacon a post was witnessed by.
+  if (!hasColumn(d, "witness_round")) d.exec("ALTER TABLE entries ADD COLUMN witness_round INTEGER");
+  if (!hasColumn(d, "witness_sig")) d.exec("ALTER TABLE entries ADD COLUMN witness_sig TEXT");
   if (!hasColumn(d, "tl_ct")) d.exec("ALTER TABLE entries ADD COLUMN tl_ct TEXT");
   if (!hasColumn(d, "tl_hash")) d.exec("ALTER TABLE entries ADD COLUMN tl_hash TEXT");
   if (!hasColumn(d, "tl_error")) d.exec("ALTER TABLE entries ADD COLUMN tl_error TEXT");
